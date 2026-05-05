@@ -42,7 +42,7 @@ import { binSharesRoutes } from './routes/binShares.js';
 import binsRoutes from './routes/bins/index.js';
 import binUsageRoutes from './routes/binUsage.js';
 import customFieldsRoutes from './routes/customFields.js';
-import exportRoutes from './routes/export.js';
+import exportRoutes from './routes/export/index.js';
 import { internalRoutes } from './routes/internal.js';
 import itemCheckoutsRoutes, { locationCheckoutsRouter as locationCheckoutsRoutes } from './routes/itemCheckouts.js';
 import itemsRoutes from './routes/items.js';

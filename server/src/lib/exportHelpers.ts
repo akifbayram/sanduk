@@ -17,6 +17,11 @@ const PHOTO_STORAGE_PATH = config.photoStoragePath;
 const ALLOWED_MIME_TYPES = new Set(Object.keys(MIME_TO_EXT));
 const ALLOWED_PHOTO_EXTS = new Set(Object.values(MIME_TO_EXT));
 
+/** Export size limits to prevent DoS via unbounded base64 photo streaming */
+export const MAX_EXPORT_BINS = 5000;
+export const MAX_EXPORT_PHOTOS_PER_BIN = 50;
+export const MAX_EXPORT_TOTAL_PHOTOS = 1000;
+
 export interface ExportBin {
   id: string;
   name: string;
