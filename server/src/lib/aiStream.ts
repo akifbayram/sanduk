@@ -1,7 +1,7 @@
 import type { LanguageModel, ModelMessage, UserContent } from 'ai';
 import { Output, streamText } from 'ai';
 import type { Request, Response } from 'express';
-import { mapSdkError, toSafeAiMessage } from './aiCaller.js';
+import { mapSdkError, toSafeAiMessage } from './aiErrors.js';
 import { config } from './config.js';
 import { createLogger } from './logger.js';
 

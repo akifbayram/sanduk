@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { AiAnalysisError, toSafeAiMessage } from './aiCaller.js';
+import { AiAnalysisError, toSafeAiMessage } from './aiErrors.js';
 import { aiErrorToStatus, NoAiSettingsError } from './aiSettings.js';
 import { HttpError, ValidationError } from './httpErrors.js';
 import { createLogger } from './logger.js';

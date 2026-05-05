@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { d, generateUuid, query } from '../db.js';
-import { AiAnalysisError, testProviderConnection, validateEndpointUrl } from '../lib/aiCaller.js';
+import { testProviderConnection } from '../lib/aiCaller.js';
+import { AiAnalysisError } from '../lib/aiErrors.js';
 import { aiRouteHandler, validateTextInput } from '../lib/aiRouteHandler.js';
 import { getUserAiSettings } from '../lib/aiSettings.js';
+import { validateEndpointUrl } from '../lib/aiSsrf.js';
 import { AI_TASK_GROUPS, type AiTaskGroup, config, getEnvAiConfig, getEnvGroupOverride, isDemoUser, isGroupEnvLocked } from '../lib/config.js';
 import { decryptApiKey, encryptApiKey, maskApiKey, resolveMaskedApiKey } from '../lib/crypto.js';
 import { ALL_DEFAULT_PROMPTS } from '../lib/defaultPrompts.js';
