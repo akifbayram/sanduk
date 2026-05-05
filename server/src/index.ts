@@ -33,7 +33,7 @@ import { streamRouter as aiStreamRoutes } from './routes/aiStream.js';
 import apiKeysRoutes from './routes/apiKeys.js';
 import areasRoutes from './routes/areas.js';
 import attachmentsRoutes from './routes/attachments.js';
-import authRoutes from './routes/auth.js';
+import authRoutes from './routes/auth/index.js';
 import avatarRoutes from './routes/avatar.js';
 import { batchRoutes } from './routes/batch.js';
 import binItemsRoutes from './routes/binItems.js';
