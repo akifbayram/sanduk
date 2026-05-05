@@ -1,49 +1,34 @@
-import { Check, RefreshCw, Sparkles, X } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tooltip } from '@/components/ui/tooltip';
-import { AiAnalyzeProgress } from '@/features/ai/AiAnalyzeProgress';
-import { AiAnalyzeError } from '@/features/ai/AiStreamingPreview';
-import { LOCK_BEAT_MS } from '@/features/ai/aiConstants';
 import { AiConfiguredIndicator, InlineAiSetup } from '@/features/ai/InlineAiSetup';
 import { useAiProviderSetup } from '@/features/ai/useAiProviderSetup';
 import { useAiSettings } from '@/features/ai/useAiSettings';
-import { AreaPicker } from '@/features/areas/AreaPicker';
 import { useAreaList } from '@/features/areas/useAreas';
 import { setCapturedReturnTarget } from '@/features/capture/capturedPhotos';
-import { CreditCost, visionWeight } from '@/lib/aiCreditCost';
 import { useAiEnabled } from '@/lib/aiToggle';
-import { getSecondaryColorInfo, setSecondaryColor } from '@/lib/cardStyle';
 import { aiItemsToBinItems, binItemsToPayload } from '@/lib/itemQuantities';
-import { prefersReducedMotion } from '@/lib/reducedMotion';
 import { useTerminology } from '@/lib/terminology';
-import { cn, focusRing, plural, sectionHeader, stickyDialogFooter } from '@/lib/utils';
-import type { AiSuggestions, BinItem, BinVisibility } from '@/types';
+import { cn, sectionHeader, stickyDialogFooter } from '@/lib/utils';
+import type { BinItem, BinVisibility } from '@/types';
 import { AiBadge } from './AiBadge';
-import { BinPreviewCard } from './BinPreviewCard';
-import { ColorPicker } from './ColorPicker';
-import { CustomFieldsEditCard } from './CustomFieldsEditCard';
-import { IconPicker } from './IconPicker';
+import { BinAiFillSection } from './BinAiFillSection';
+import { BinAiSetupPanel } from './BinAiSetupPanel';
+import { BinCreateOnboardingFields } from './BinCreateOnboardingFields';
+import { BinMoreOptionsSection } from './BinMoreOptionsSection';
 import { ItemList } from './ItemList';
 import { PhotoBulkAdd } from './PhotoBulkAdd';
 import { PhotoUploadSection } from './PhotoUploadSection';
 import { QuickAddWidget } from './QuickAddWidget';
-import { StylePicker } from './StylePicker';
-import { TagInput } from './TagInput';
 import { type AiFillField, useAiFillState } from './useAiFillState';
+import { useBinCreateWizard } from './useBinCreateWizard';
 import { useBinFormFields } from './useBinFormFields';
 import { useCustomFields } from './useCustomFields';
+import { useDeferredAiFill } from './useDeferredAiFill';
 import { useItemEntry } from './useItemEntry';
 import { usePhotoAnalysis } from './usePhotoAnalysis';
-import { VisibilityPicker } from './VisibilityPicker';
-
-const AiCreditEstimate = __EE__
-  ? lazy(() => import('@/ee/AiCreditEstimate').then(m => ({ default: m.AiCreditEstimate })))
-  : (() => null) as React.FC<{ cost: number; className?: string }>;
 
 export interface BinCreateFormData {
   name: string;
@@ -110,18 +95,6 @@ export function BinCreateForm({
     navigate('/capture', { state: { returnTo: location.pathname } });
   }
 
-  const [pickedFiles, setPickedFiles] = useState<File[] | null>(null);
-  const [pickedGroups, setPickedGroups] = useState<number[] | null>(null);
-
-  const effectivePhotos = pickedFiles ?? initialPhotos ?? null;
-  const effectiveGroups = pickedGroups ?? initialGroups ?? null;
-  const wizardMode = (effectiveGroups && new Set(effectiveGroups).size > 1) ?? false;
-  const [wizardActive, setWizardActive] = useState(wizardMode);
-
-  useEffect(() => {
-    if (wizardMode) setWizardActive(true);
-  }, [wizardMode]);
-
   const {
     name, setName,
     areaId, setAreaId,
@@ -139,10 +112,7 @@ export function BinCreateForm({
 
   const aiFill = useAiFillState();
 
-  // Progressive disclosure
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
-
-  // Name validation
   const [nameError, setNameError] = useState<string | null>(null);
 
   // Onboarding-specific: inline AI setup
@@ -150,7 +120,7 @@ export function BinCreateForm({
   const setup = useAiProviderSetup({ onSaveSuccess: () => setAiExpanded(false) });
   const aiConfiguredInline = setup.configured || (aiSettings !== null && !aiSettingsLoading);
 
-  // Full mode: inline AI setup
+  // Full-mode: inline AI setup
   const [showAiSetup, setShowAiSetup] = useState(false);
   const fullSetup = useAiProviderSetup({ onSaveSuccess: () => setShowAiSetup(false) });
 
@@ -166,27 +136,20 @@ export function BinCreateForm({
     }
   };
 
-  // Deferred AI result: store result during analysis, apply after completion flash
-  const pendingAiResult = useRef<AiSuggestions | null>(null);
-  const [confirmPhase, setConfirmPhase] = useState<'idle' | 'locking'>('idle');
-  const lockTimerRef = useRef<number | null>(null);
-
-  function applyPendingAiResult() {
-    const result = pendingAiResult.current;
-    if (!result) return;
-    pendingAiResult.current = null;
-
-    const filled = new Set<AiFillField>();
-    if (result.name) {
-      setName(result.name);
-      filled.add('name');
-    }
-    if (result.items?.length) {
-      setItems(aiItemsToBinItems(result.items));
-      filled.add('items');
-    }
-    aiFill.markFilled(filled);
-  }
+  const deferredAiFill = useDeferredAiFill({
+    onApply: (result) => {
+      const filled = new Set<AiFillField>();
+      if (result.name) {
+        setName(result.name);
+        filled.add('name');
+      }
+      if (result.items?.length) {
+        setItems(aiItemsToBinItems(result.items));
+        filled.add('items');
+      }
+      aiFill.markFilled(filled);
+    },
+  });
 
   const {
     fileInputRef,
@@ -208,30 +171,18 @@ export function BinCreateForm({
     aiConfigured: isFull ? aiReady : aiConfiguredInline,
     onApplyDirect: (result) => {
       aiFill.snapshot({ name, items });
-      pendingAiResult.current = result;
-      if (prefersReducedMotion()) {
-        applyPendingAiResult();
-      } else {
-        setConfirmPhase('locking');
-        lockTimerRef.current = window.setTimeout(() => {
-          setConfirmPhase('idle');
-          lockTimerRef.current = null;
-          applyPendingAiResult();
-        }, LOCK_BEAT_MS);
-      }
+      deferredAiFill.schedule(result);
     },
     onAiSetupNeeded: handleAiSetupNeeded,
   });
 
-  // Cleanup any pending lock timer on unmount.
-  useEffect(() => {
-    return () => {
-      if (lockTimerRef.current !== null) {
-        clearTimeout(lockTimerRef.current);
-        lockTimerRef.current = null;
-      }
-    };
-  }, []);
+  const wizard = useBinCreateWizard({
+    initialPhotos,
+    initialGroups,
+    formPhotos: photos,
+    onCancelAnalyze: cancelAnalyze,
+    onClearFormPhotos: clearPhotos,
+  });
 
   // Clear AI success banner when all photos are removed so the user can re-analyze with new photos.
   useEffect(() => {
@@ -256,21 +207,6 @@ export function BinCreateForm({
     filePickerTriggeredRef.current = true;
     fileInputRef.current?.click();
   }, [triggerFilePickerOnMount, fileInputRef]);
-
-  // When photos accumulate to ≥2 in single-bin mode, lift them into the wizard.
-  // Each photo becomes its own group (user can merge in the wizard's group step).
-  // Hand ownership to the wizard by clearing the form's photo state — so when the
-  // wizard exits (success, cancel, or all photos removed), the form starts fresh.
-  useEffect(() => {
-    if (wizardActive) return;
-    if (photos.length < 2) return;
-    const captured = photos;
-    cancelAnalyze();
-    setPickedFiles(captured);
-    setPickedGroups(captured.map((_, i) => i));
-    clearPhotos();
-    setWizardActive(true);
-  }, [photos, wizardActive, cancelAnalyze, clearPhotos]);
 
   function handleUndoAiField(field: AiFillField) {
     const snap = aiFill.undo(field);
@@ -307,182 +243,70 @@ export function BinCreateForm({
     });
   }
 
-  if (wizardActive) {
+  if (wizard.wizardActive) {
     return (
       <PhotoBulkAdd
-        initialPhotos={effectivePhotos ?? []}
-        initialGroups={effectiveGroups ?? null}
+        initialPhotos={wizard.effectivePhotos ?? []}
+        initialGroups={wizard.effectiveGroups ?? null}
         aiSettings={aiSettings}
         onComplete={() => {
-          setWizardActive(false);
-          setPickedFiles(null);
-          setPickedGroups(null);
+          wizard.exitWizard();
           onInitialPhotosConsumed?.();
           onWizardComplete?.();
         }}
         onExitToForm={() => {
-          setWizardActive(false);
-          setPickedFiles(null);
-          setPickedGroups(null);
+          wizard.exitWizard();
           onInitialPhotosConsumed?.();
         }}
       />
     );
   }
 
-  const compactLabel = 'text-[13px] text-[var(--text-tertiary)] mb-1.5 block';
-
   const areaName = areas.find(a => a.id === areaId)?.name ?? '';
-  const secondaryInfo = getSecondaryColorInfo(cardStyle);
   const renderedHeader = typeof header === 'function'
     ? header({ name, color, items, tags, icon, cardStyle, areaName })
     : header;
+
+  const photoUploadProps = {
+    fileInputRef,
+    photos,
+    photoPreviews,
+    onPhotoSelect: handlePhotoSelect,
+    onRemovePhoto: handleRemovePhoto,
+    onCameraClick: handleCameraClick,
+    onFilesDropped: addPhotosFromFiles,
+    onMultiFileSelection: wizard.promoteFiles,
+    analyzing,
+  };
 
   return (
     <form onSubmit={handleFormSubmit} className={cn(isFull ? 'flex flex-1 flex-col gap-5' : 'space-y-3', className)}>
       {renderedHeader}
 
-      {/* --- FULL MODE LAYOUT --- */}
       {isFull ? (
         <>
-          {/* Photo upload */}
-          <PhotoUploadSection
-            fileInputRef={fileInputRef}
-            photos={photos}
-            photoPreviews={photoPreviews}
-            onPhotoSelect={handlePhotoSelect}
-            onRemovePhoto={handleRemovePhoto}
-            onCameraClick={handleCameraClick}
-            onFilesDropped={addPhotosFromFiles}
-            onMultiFileSelection={(files) => {
-              setPickedFiles(files);
-              setPickedGroups(files.map((_, i) => i));
-            }}
+          <PhotoUploadSection {...photoUploadProps} />
+
+          <BinAiFillSection
             analyzing={analyzing}
+            analyzeError={analyzeError}
+            analyzeMode={analyzeMode}
+            analyzePartialText={analyzePartialText}
+            confirmPhase={deferredAiFill.confirmPhase}
+            cancelAnalyze={cancelAnalyze}
+            aiReady={aiReady}
+            showAi={showAi}
+            photos={photos}
+            name={name}
+            items={items}
+            filledCount={aiFill.filled.size}
+            onAnalyze={handleAnalyze}
+            onReanalyze={handleReanalyze}
+            onConfigureAi={() => setShowAiSetup(true)}
           />
 
-          {/* AI Fill button / Error card / Success banner */}
-          {(() => {
-            // Error state
-            if (analyzeError) {
-              return (
-                <AiAnalyzeError
-                  error={analyzeError}
-                  onRetry={handleAnalyze}
-                  onConfigureAi={() => setShowAiSetup(true)}
-                />
-              );
-            }
-
-            // Success banner (after AI fill) — wait for completion flash
-            if (aiFill.filled.size > 0 && !analyzing && confirmPhase !== 'locking') {
-              return (
-                <output className="rounded-[var(--radius-md)] bg-emerald-500/8 border border-emerald-500/20 px-3.5 py-2.5 text-[13px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span className="flex-1 min-w-0">AI filled {aiFill.filled.size} {plural(aiFill.filled.size, 'field')}</span>
-                  {photos.length > 0 && (
-                    <Tooltip content="Re-run AI analysis on your photos with current field values as context">
-                      <button
-                        type="button"
-                        onClick={() => handleReanalyze({
-                          name,
-                          items: items.map((i) => ({ name: i.name, quantity: i.quantity })),
-                        })}
-                        className={cn('shrink-0 h-6 w-6 inline-flex items-center justify-center rounded-[var(--radius-sm)] bg-[var(--ai-accent)]/10 text-[var(--ai-accent)] hover:bg-[var(--ai-accent)]/20 transition-colors', focusRing)}
-                        aria-label="Reanalyze photos with AI"
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                      </button>
-                    </Tooltip>
-                  )}
-                </output>
-              );
-            }
-
-            // AI Fill button / progress bar
-            if (aiReady) {
-              if (analyzing || confirmPhase === 'locking') {
-                const isLocking = confirmPhase === 'locking';
-                return (
-                  <AiAnalyzeProgress
-                    active={analyzing || isLocking}
-                    complete={isLocking}
-                    mode={isLocking ? 'locking' : analyzeMode}
-                    partialText={analyzePartialText}
-                    onCancel={analyzing ? cancelAnalyze : undefined}
-                    className="w-full"
-                  />
-                );
-              }
-              const aiFillCost = visionWeight(photos.length);
-              return (
-                <div className="flex flex-col items-center gap-1.5 w-full">
-                  <Button
-                    variant="ai"
-                    type="button"
-                    onClick={handleAnalyze}
-                    disabled={photos.length === 0}
-                    className="w-full gap-1.5 min-h-[44px]"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    {photos.length > 0
-                      ? `AI Fill from ${photos.length} ${plural(photos.length, 'photo')}`
-                      : 'AI Fill'}
-                  </Button>
-                  {photos.length > 0 && (
-                    __EE__ ? (
-                      <Suspense fallback={<CreditCost cost={aiFillCost} />}>
-                        <AiCreditEstimate cost={aiFillCost} />
-                      </Suspense>
-                    ) : (
-                      <CreditCost cost={aiFillCost} />
-                    )
-                  )}
-                </div>
-              );
-            }
-
-            // AI not configured
-            if (showAi) {
-              return (
-                <button
-                  type="button"
-                  onClick={handleAiSetupNeeded}
-                  className="w-full min-h-[44px] rounded-[var(--radius-md)] bg-[var(--ai-accent)]/6 border border-[var(--ai-accent)]/15 text-[var(--ai-accent)] text-[14px] font-medium flex items-center justify-center gap-1.5 hover:bg-[var(--ai-accent)]/10 transition-colors"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Set up AI to auto-fill details
-                </button>
-              );
-            }
-
-            return null;
-          })()}
-
-          {/* Inline AI setup (full mode) */}
           {showAiSetup && !aiReady && (
-            <div className="rounded-[var(--radius-md)] border border-[var(--ai-accent)]/15 bg-[var(--ai-accent)]/[0.03] p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-[var(--ai-accent)]" />
-                  <span className="text-[14px] font-semibold text-[var(--text-primary)]">Set up AI</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAiSetup(false)}
-                  className="p-2 -m-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                  aria-label="Close AI setup"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <InlineAiSetup
-                expanded
-                onExpandedChange={() => {}}
-                setup={fullSetup}
-                label=""
-              />
-            </div>
+            <BinAiSetupPanel setup={fullSetup} onClose={() => setShowAiSetup(false)} />
           )}
 
           {/* Name with validation and AI badge */}
@@ -536,160 +360,54 @@ export function BinCreateForm({
             />
           </div>
 
-          {/* More Options accordion with optional fields */}
-          <Disclosure
-            label="More options"
+          <BinMoreOptionsSection
             open={moreOptionsOpen}
             onOpenChange={setMoreOptionsOpen}
-            labelClassName="py-2 text-[var(--accent)] cursor-pointer"
-          >
-            <div className="space-y-5">
-            <div className="space-y-2">
-              <span className={sectionHeader}>{t.Area}</span>
-              <AreaPicker locationId={locationId} value={areaId} onChange={setAreaId} />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="bin-notes" className={sectionHeader}>Notes</label>
-              <Textarea
-                id="bin-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Additional notes..."
-                maxLength={10000}
-                rows={2}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <span className={sectionHeader}>Tags</span>
-              <TagInput tags={tags} onChange={setTags} suggestions={allTags} />
-            </div>
-
-            {customFieldDefs.length > 0 && (
-              <div className="space-y-2">
-                <span className={sectionHeader}>Custom Fields</span>
-                <CustomFieldsEditCard
-                  fields={customFieldDefs}
-                  values={customFields}
-                  onChange={setCustomFields}
-                />
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <span className={sectionHeader}>Appearance</span>
-              <BinPreviewCard
-                name={name}
-                color={color}
-                items={items.map((i) => i.name)}
-                tags={tags}
-                icon={icon}
-                cardStyle={cardStyle}
-                areaName={areaName}
-              />
-              <div className="space-y-2">
-                <span className="text-[12px] text-[var(--text-tertiary)]">Icon</span>
-                <IconPicker value={icon} onChange={setIcon} />
-              </div>
-              <div className="space-y-2">
-                <span className="text-[12px] text-[var(--text-tertiary)]">Color</span>
-                <ColorPicker
-                  value={color}
-                  onChange={setColor}
-                  secondaryLabel={secondaryInfo?.label}
-                  secondaryValue={secondaryInfo?.value}
-                  onSecondaryChange={secondaryInfo ? (c) => setCardStyle(setSecondaryColor(cardStyle, c)) : undefined}
-                />
-              </div>
-              <div className="space-y-2">
-                <span className="text-[12px] text-[var(--text-tertiary)]">Style</span>
-                <StylePicker value={cardStyle} color={color} onChange={setCardStyle} />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className={sectionHeader}>Visibility</span>
-              <VisibilityPicker value={visibility} onChange={setVisibility} />
-            </div>
-            </div>
-          </Disclosure>
+            locationId={locationId}
+            name={name}
+            items={items}
+            areaId={areaId}
+            setAreaId={setAreaId}
+            notes={notes}
+            setNotes={setNotes}
+            tags={tags}
+            setTags={setTags}
+            allTags={allTags}
+            customFieldDefs={customFieldDefs}
+            customFields={customFields}
+            setCustomFields={setCustomFields}
+            icon={icon}
+            setIcon={setIcon}
+            color={color}
+            setColor={setColor}
+            cardStyle={cardStyle}
+            setCardStyle={setCardStyle}
+            visibility={visibility}
+            setVisibility={setVisibility}
+            areaName={areaName}
+          />
         </>
       ) : (
-        /* --- ONBOARDING MODE LAYOUT --- */
-        <>
-          {/* Name */}
-          <div>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={`${t.Bin} name`}
-              maxLength={255}
-              required
-              autoFocus
-            />
-          </div>
-
-          {/* Items */}
-          <div className="text-left">
-            <ItemList
-              items={items}
-              onItemsChange={setItems}
-              footerSlot={
-                <QuickAddWidget
-                  quickAdd={quickAdd}
-                  aiEnabled={showAi}
-                  dictation={dictation}
-                  canTranscribe={canTranscribe}
-                  variant="inline"
-                  isEmptyList={items.length === 0}
-                />
-              }
-            />
-          </div>
-
-          {/* Area */}
-          <div className="text-left">
-            <label htmlFor="bin-area" className={compactLabel}>{t.Area}</label>
-            <AreaPicker locationId={locationId} value={areaId} onChange={setAreaId} />
-          </div>
-
-          {/* Photo upload */}
-          <PhotoUploadSection
-            fileInputRef={fileInputRef}
-            photos={photos}
-            photoPreviews={photoPreviews}
-            onPhotoSelect={handlePhotoSelect}
-            onRemovePhoto={handleRemovePhoto}
-            onCameraClick={handleCameraClick}
-            onFilesDropped={addPhotosFromFiles}
-            onMultiFileSelection={(files) => {
-              setPickedFiles(files);
-              setPickedGroups(files.map((_, i) => i));
-            }}
-            analyzing={analyzing}
-          />
-
-          {/* Appearance */}
-          <div className="text-left">
-            <label htmlFor="bin-color" className={compactLabel}>Color</label>
-            <ColorPicker
-              value={color}
-              onChange={setColor}
-              secondaryLabel={secondaryInfo?.label}
-              secondaryValue={secondaryInfo?.value}
-              onSecondaryChange={secondaryInfo ? (c) => setCardStyle(setSecondaryColor(cardStyle, c)) : undefined}
-            />
-          </div>
-          <div className="text-left">
-            <label htmlFor="bin-icon" className={compactLabel}>Icon</label>
-            <IconPicker value={icon} onChange={setIcon} />
-          </div>
-          <div className="text-left">
-            <label htmlFor="bin-style" className={compactLabel}>Style</label>
-            <StylePicker value={cardStyle} color={color} onChange={setCardStyle} />
-          </div>
-        </>
+        <BinCreateOnboardingFields
+          locationId={locationId}
+          name={name}
+          setName={setName}
+          items={items}
+          setItems={setItems}
+          areaId={areaId}
+          setAreaId={setAreaId}
+          icon={icon}
+          setIcon={setIcon}
+          color={color}
+          setColor={setColor}
+          cardStyle={cardStyle}
+          setCardStyle={setCardStyle}
+          photoUpload={photoUploadProps}
+          quickAdd={quickAdd}
+          dictation={dictation}
+          canTranscribe={canTranscribe}
+          showAi={showAi}
+        />
       )}
 
       {/* Inline AI setup (onboarding mode only) */}
