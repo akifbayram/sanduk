@@ -1,32 +1,18 @@
-import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 import bcrypt from 'bcrypt';
 import { Router } from 'express';
-import multer from 'multer';
-import { d, generateUuid, isUniqueViolation, query } from '../db.js';
-import { recoverDeletion, requestDeletion } from '../lib/accountDeletion.js';
-import { logAdminAction } from '../lib/adminAudit.js';
-import { getAdminCount } from '../lib/adminHelpers.js';
-import { asyncHandler } from '../lib/asyncHandler.js';
-import { runBackup } from '../lib/backup.js';
-import { config } from '../lib/config.js';
-import { getEeHooks } from '../lib/eeHooks.js';
-import { firePasswordResetEmail } from '../lib/emailSender.js';
-import { ConflictError, ForbiddenError, HttpError, NotFoundError, ValidationError } from '../lib/httpErrors.js';
-import { createLogger } from '../lib/logger.js';
-import { createPasswordResetToken } from '../lib/passwordReset.js';
-import { getFeatureMap, invalidateOverLimitCache, isSelfHosted, Plan, type PlanTier, planLabel, SubStatus, type SubStatusType, subStatusLabel, validatePlanTransition } from '../lib/planGate.js';
-import { restoreBackup } from '../lib/restore.js';
-import { validateDisplayName, validateLoginEmail, validatePassword } from '../lib/validation.js';
-import { authenticate } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/requireAdmin.js';
+import { d, generateUuid, isUniqueViolation, query } from '../../db.js';
+import { requestDeletion } from '../../lib/accountDeletion.js';
+import { getAdminCount } from '../../lib/adminHelpers.js';
+import { asyncHandler } from '../../lib/asyncHandler.js';
+import { config } from '../../lib/config.js';
+import { getEeHooks } from '../../lib/eeHooks.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../../lib/httpErrors.js';
+import { createLogger } from '../../lib/logger.js';
+import { getFeatureMap, invalidateOverLimitCache, isSelfHosted, Plan, type PlanTier, planLabel, SubStatus, type SubStatusType, subStatusLabel, validatePlanTransition } from '../../lib/planGate.js';
+import { validateDisplayName, validateLoginEmail, validatePassword } from '../../lib/validation.js';
 
 const log = createLogger('admin');
 const router = Router();
-
-// All admin routes require authentication + admin role
-router.use(authenticate, requireAdmin);
 
 // GET /api/admin/users — list all users (paginated, searchable)
 router.get('/users', asyncHandler(async (req, res) => {
@@ -138,7 +124,7 @@ router.post('/users', asyncHandler(async (req, res) => {
   const passwordHash = await bcrypt.hash(password, config.bcryptRounds);
   const userId = generateUuid();
 
-  let result: import('../db.js').QueryResult<Record<string, unknown>>;
+  let result: import('../../db.js').QueryResult<Record<string, unknown>>;
   try {
     result = await query(
       `INSERT INTO users (id, password_hash, display_name, email, is_admin, plan, sub_status, active_until)
@@ -388,10 +374,10 @@ router.put('/users/:id', asyncHandler(async (req, res) => {
 
       try {
         if (effectiveStatus === SubStatus.ACTIVE) {
-          const { fireSubscriptionConfirmedEmail } = await import('../ee/lifecycleEmails.js');
+          const { fireSubscriptionConfirmedEmail } = await import('../../ee/lifecycleEmails.js');
           fireSubscriptionConfirmedEmail(targetId, updatedUser.email, updatedUser.display_name, effectivePlan as PlanTier, updatedUser.active_until);
         } else if (effectiveStatus === SubStatus.INACTIVE) {
-          const { fireSubscriptionExpiredEmail } = await import('../ee/lifecycleEmails.js');
+          const { fireSubscriptionExpiredEmail } = await import('../../ee/lifecycleEmails.js');
           fireSubscriptionExpiredEmail(targetId, updatedUser.email, updatedUser.display_name);
         }
       } catch {
@@ -451,166 +437,4 @@ router.delete('/users/:id', asyncHandler(async (req, res) => {
   });
 }));
 
-// POST /api/admin/users/:id/recover-deletion — restore a soft-deleted user
-// during the grace window. Thin wrapper over recoverDeletion(); also writes
-// an admin_audit_log entry to mirror the request side.
-router.post('/users/:id/recover-deletion', asyncHandler(async (req, res) => {
-  const targetId = req.params.id;
-
-  const targetResult = await query<{ id: string; email: string }>(
-    'SELECT id, email FROM users WHERE id = $1',
-    [targetId],
-  );
-  const target = targetResult.rows[0];
-  if (!target) throw new NotFoundError('User not found');
-
-  await recoverDeletion(targetId);
-
-  logAdminAction({
-    actorId: req.user!.id,
-    actorName: req.user!.email,
-    action: 'recover_account_deletion',
-    targetType: 'user',
-    targetId,
-    targetName: target.email,
-  });
-
-  log.info(`Admin ${req.user!.email} recovered pending-deletion account ${target.email}`);
-
-  res.json({ message: 'User recovered' });
-}));
-
-// POST /api/admin/users/:id/regenerate-api-key — revoke all keys and generate a new one
-router.post('/users/:id/regenerate-api-key', asyncHandler(async (req, res) => {
-  const targetId = req.params.id;
-
-  const targetResult = await query<{ id: string; email: string }>(
-    'SELECT id, email FROM users WHERE id = $1',
-    [targetId],
-  );
-  const target = targetResult.rows[0];
-  if (!target) throw new NotFoundError('User not found');
-
-  // Revoke all existing keys
-  await query(
-    `UPDATE api_keys SET revoked_at = ${d.now()} WHERE user_id = $1 AND revoked_at IS NULL`,
-    [targetId],
-  );
-
-  // Generate a new key (same pattern as apiKeys.ts)
-  const key = `sk_openbin_${crypto.randomBytes(32).toString('hex')}`;
-  const keyHash = crypto.createHash('sha256').update(key).digest('hex');
-  const keyPrefix = key.slice(0, 18);
-  const id = generateUuid();
-
-  await query(
-    'INSERT INTO api_keys (id, user_id, key_hash, key_prefix, name) VALUES ($1, $2, $3, $4, $5)',
-    [id, targetId, keyHash, keyPrefix, 'Admin-generated key'],
-  );
-
-  log.info(`User ${req.user!.email} regenerated API key for user ${target.email}`);
-
-  res.json({ keyPrefix, name: 'Admin-generated key', createdAt: new Date().toISOString() });
-}));
-
-// POST /api/admin/users/:id/send-password-reset — send password reset email
-router.post('/users/:id/send-password-reset', asyncHandler(async (req, res) => {
-  const targetId = req.params.id;
-
-  const targetResult = await query<{ id: string; email: string; display_name: string }>(
-    'SELECT id, email, display_name FROM users WHERE id = $1',
-    [targetId],
-  );
-  const target = targetResult.rows[0];
-  if (!target) throw new NotFoundError('User not found');
-
-  const { rawToken } = await createPasswordResetToken(targetId, req.user!.id);
-  const resetUrl = `${config.baseUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
-
-  firePasswordResetEmail(targetId, target.email, target.display_name, resetUrl);
-
-  log.info(`User ${req.user!.email} sent password reset for user ${target.email}`);
-
-  res.json({ message: 'Password reset email sent' });
-}));
-
-// PATCH /api/admin/registration — toggle registration mode
-// Runtime override stored in settings table; env var takes precedence
-router.patch('/registration', asyncHandler(async (req, res) => {
-  const { mode } = req.body;
-  if (!mode || !['open', 'invite', 'closed'].includes(mode)) {
-    throw new ValidationError('Invalid registration mode. Must be open, invite, or closed');
-  }
-
-  // If REGISTRATION_MODE env var is set, it takes precedence — block runtime changes
-  if (process.env.REGISTRATION_MODE) {
-    throw new ForbiddenError('Registration mode is locked by REGISTRATION_MODE environment variable');
-  }
-
-  await query(
-    "INSERT INTO settings (key, value) VALUES ('registration_mode', $1) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-    [mode],
-  );
-
-  log.info(`User ${req.user!.email} changed registration mode to ${mode}`);
-
-  res.json({ mode });
-}));
-
-// GET /api/admin/registration — get current registration mode
-router.get('/registration', asyncHandler(async (_req, res) => {
-  const mode = await getRegistrationMode();
-  const locked = !!process.env.REGISTRATION_MODE;
-  res.json({ mode, locked });
-}));
-
-export async function getRegistrationMode(): Promise<string> {
-  // Env var takes precedence
-  if (process.env.REGISTRATION_MODE) {
-    const mode = process.env.REGISTRATION_MODE;
-    if (mode === 'invite' || mode === 'closed') return mode;
-    return 'open';
-  }
-  // Runtime override from settings table
-  const result = await query<{ value: string }>("SELECT value FROM settings WHERE key = 'registration_mode'");
-  return result.rows[0]?.value || 'open';
-}
-
-// POST /api/admin/backup — trigger on-demand backup
-router.post('/backup', asyncHandler(async (req, res) => {
-  const zipPath = await runBackup();
-  log.info(`On-demand backup created by ${req.user!.email}`);
-  res.json({ message: 'Backup created', filename: path.basename(zipPath) });
-}));
-
-// POST /api/admin/restore — restore from backup ZIP
-const restoreUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => {
-      fs.mkdirSync(config.backupPath, { recursive: true });
-      cb(null, config.backupPath);
-    },
-    filename: (_req, _file, cb) => cb(null, `.restore-upload-${Date.now()}.zip`),
-  }),
-  limits: { fileSize: 200 * 1024 * 1024 },
-}).single('file');
-
-router.post('/restore', restoreUpload, asyncHandler(async (req, res) => {
-  if (!req.file) {
-    throw new ValidationError('ZIP file is required');
-  }
-
-  const result = await restoreBackup(req.file.path);
-
-  // Clean up the uploaded file
-  try { fs.unlinkSync(req.file.path); } catch { /* best effort */ }
-
-  if (!result.success) {
-    throw new HttpError(500, 'RESTORE_FAILED', result.error || 'Unknown restore error');
-  }
-
-  log.info(`Backup restored by ${req.user!.email}`);
-  res.json({ message: 'Backup restored successfully' });
-}));
-
-export { router as adminRoutes };
+export default router;

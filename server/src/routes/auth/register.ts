@@ -10,10 +10,9 @@ import { createLogger } from '../../lib/logger.js';
 import { isSelfHosted, Plan, SubStatus } from '../../lib/planGate.js';
 import { queryMaybeOne, queryOne } from '../../lib/queryHelpers.js';
 import { createRefreshToken } from '../../lib/refreshTokens.js';
+import { getRegistrationMode } from '../../lib/registrationMode.js';
 import { validateDisplayName, validateLoginEmail, validatePassword } from '../../lib/validation.js';
 import { signToken } from '../../middleware/auth.js';
-
-import { getRegistrationMode } from '../admin.js';
 
 const log = createLogger('auth');
 const router = Router();

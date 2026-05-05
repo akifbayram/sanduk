@@ -31,7 +31,7 @@ vi.mock('../../lib/config.js', () => ({
   config: { bulkMaxSelection: 200 },
 }));
 
-const { default: router } = await import('../items.js');
+const { default: router } = await import('../items/bulk.js');
 
 function findHandler(method: 'post', path: string) {
   const layer = (router as any).stack.find(

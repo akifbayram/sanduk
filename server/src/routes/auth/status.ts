@@ -7,10 +7,9 @@ import { ForbiddenError } from '../../lib/httpErrors.js';
 import { getOAuthProviders } from '../../lib/oauth.js';
 import { queryMaybeOne, queryOne } from '../../lib/queryHelpers.js';
 import { createRefreshToken } from '../../lib/refreshTokens.js';
+import { getRegistrationMode } from '../../lib/registrationMode.js';
 import { signToken } from '../../middleware/auth.js';
 import { getMaintenanceMessage, isMaintenanceMode } from '../../middleware/maintenance.js';
-
-import { getRegistrationMode } from '../admin.js';
 
 const router = Router();
 
