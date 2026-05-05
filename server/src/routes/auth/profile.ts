@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { Router } from 'express';
 import { d, isUniqueViolation, query } from '../../db.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
+import { verifyLocationMembership } from '../../lib/binAccess.js';
 import { config } from '../../lib/config.js';
 import { clearAuthCookies } from '../../lib/cookies.js';
 import { ConflictError, ForbiddenError, UnauthorizedError, ValidationError } from '../../lib/httpErrors.js';
@@ -11,8 +12,6 @@ import { queryMaybeOne, queryOne } from '../../lib/queryHelpers.js';
 import { revokeAllUserTokens } from '../../lib/refreshTokens.js';
 import { validateDisplayName, validateLoginEmail, validatePassword } from '../../lib/validation.js';
 import { authenticate, invalidateUserStatusCache } from '../../middleware/auth.js';
-
-import { isLocationMember } from './helpers.js';
 
 const log = createLogger('auth');
 const router = Router();
@@ -26,7 +25,7 @@ router.get('/me', authenticate, asyncHandler(async (req, res) => {
 
   // Validate stored active_location_id — clear if no longer a member
   let activeLocationId: string | null = user.active_location_id || null;
-  if (activeLocationId && !(await isLocationMember(activeLocationId, user.id))) {
+  if (activeLocationId && !(await verifyLocationMembership(activeLocationId, user.id))) {
     activeLocationId = null;
     await query('UPDATE users SET active_location_id = NULL WHERE id = $1', [user.id]);
   }
@@ -127,7 +126,7 @@ router.put('/active-location', authenticate, asyncHandler(async (req, res) => {
     if (typeof locationId !== 'string' || locationId.length === 0) {
       throw new ValidationError('locationId must be a non-empty string or null');
     }
-    if (!(await isLocationMember(locationId, req.user!.id))) {
+    if (!(await verifyLocationMembership(locationId, req.user!.id))) {
       throw new ForbiddenError('Not a member of this location');
     }
   }

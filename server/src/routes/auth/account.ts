@@ -9,6 +9,8 @@ import { createLogger } from '../../lib/logger.js';
 import { queryMaybeOne, queryOne } from '../../lib/queryHelpers.js';
 import { authenticate } from '../../middleware/auth.js';
 
+import { runConstantTimeBcryptCompare } from './helpers.js';
+
 const log = createLogger('auth');
 const router = Router();
 
@@ -89,8 +91,8 @@ router.post('/recover-deletion', asyncHandler(async (req, res) => {
 
   if (!user || !user.deletion_requested_at || !user.password_hash) {
     // Constant-time rejection to avoid leaking which of the four conditions
-    // matched. The dummy bcrypt is the same one used elsewhere in this file.
-    await bcrypt.compare(password, '$2b$12$000000000000000000000uVjKPCGJcotDu8bMahKn7VoPxpL0Wi');
+    // matched.
+    await runConstantTimeBcryptCompare(password);
     throw new UnauthorizedError('Invalid email or password');
   }
   const valid = await bcrypt.compare(password, user.password_hash);

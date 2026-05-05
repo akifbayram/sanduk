@@ -11,13 +11,17 @@ import statusRouter from './status.js';
 
 const router = Router();
 
+// Mount order is incidental — none of the sub-routers share a path prefix or
+// have overlapping verbs, so Express's first-match-wins doesn't kick in. The
+// grouping below follows lifecycle order: discovery → signup → session →
+// identity → password & account → social.
 router.use(statusRouter);
 router.use(invitePreviewRouter);
 router.use(registerRouter);
 router.use(sessionRouter);
 router.use(profileRouter);
-router.use(accountRouter);
 router.use(passwordResetRouter);
+router.use(accountRouter);
 router.use(oauthRouter);
 
 export default router;

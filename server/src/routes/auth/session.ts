@@ -1,7 +1,8 @@
 import bcrypt from 'bcrypt';
 import { Router } from 'express';
-import { generateUuid, query } from '../../db.js';
+import { query } from '../../db.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
+import { verifyLocationMembership } from '../../lib/binAccess.js';
 import { clearAuthCookies, setAccessTokenCookie, setRefreshTokenCookie } from '../../lib/cookies.js';
 import { ConflictError, ForbiddenError, UnauthorizedError, ValidationError } from '../../lib/httpErrors.js';
 import { createLogger } from '../../lib/logger.js';
@@ -9,7 +10,7 @@ import { queryMaybeOne } from '../../lib/queryHelpers.js';
 import { createRefreshToken, revokeAllUserTokens, revokeSingleToken, rotateRefreshToken } from '../../lib/refreshTokens.js';
 import { authenticate, signToken } from '../../middleware/auth.js';
 
-import { isLocationMember } from './helpers.js';
+import { recordLoginAttempt, runConstantTimeBcryptCompare } from './helpers.js';
 
 const log = createLogger('auth');
 const router = Router();
@@ -32,7 +33,7 @@ router.post('/login', asyncHandler(async (req, res) => {
 
   if (result.rows.length === 0) {
     // Constant-time rejection — prevent timing-based email enumeration
-    await bcrypt.compare(password, '$2b$12$000000000000000000000uVjKPCGJcotDu8bMahKn7VoPxpL0Wi');
+    await runConstantTimeBcryptCompare(password);
     log.warn(`Login failed: unknown email "${email}"`);
     throw new UnauthorizedError('Invalid email or password');
   }
@@ -42,18 +43,16 @@ router.post('/login', asyncHandler(async (req, res) => {
   // Social-only users have no password — return generic credentials error to
   // avoid leaking that the account exists. Run a dummy bcrypt to equalize timing.
   if (!user.password_hash) {
-    await bcrypt.compare(password, '$2b$12$000000000000000000000uVjKPCGJcotDu8bMahKn7VoPxpL0Wi');
+    await runConstantTimeBcryptCompare(password);
     log.warn(`Login failed: no password set for "${email}" (social-only account)`);
-    query('INSERT INTO login_history (id, user_id, ip_address, user_agent, method, success) VALUES ($1, $2, $3, $4, $5, 0)',
-      [generateUuid(), user.id, ip, ua, 'password']).catch(() => {});
+    recordLoginAttempt(user.id, ip, ua, 'password', false);
     throw new UnauthorizedError('Invalid email or password');
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
     log.warn(`Login failed: bad password for email "${email}"`);
-    // Record failed login
-    query('INSERT INTO login_history (id, user_id, ip_address, user_agent, method, success) VALUES ($1, $2, $3, $4, $5, 0)', [generateUuid(), user.id, ip, ua, 'password']).catch(() => {});
+    recordLoginAttempt(user.id, ip, ua, 'password', false);
     throw new UnauthorizedError('Invalid email or password');
   }
   if (user.deleted_at) {
@@ -75,18 +74,17 @@ router.post('/login', asyncHandler(async (req, res) => {
     // Generic credentials error — gating on suspended status would let an
     // attacker enumerate which emails belong to suspended cloud accounts.
     log.warn(`Login failed: suspended user "${email}"`);
-    query('INSERT INTO login_history (id, user_id, ip_address, user_agent, method, success) VALUES ($1, $2, $3, $4, $5, 0)', [generateUuid(), user.id, ip, ua, 'password']).catch(() => {});
+    recordLoginAttempt(user.id, ip, ua, 'password', false);
     throw new UnauthorizedError('Invalid email or password');
   }
   if (user.force_password_change) {
     log.info(`Login blocked: force password change required for "${email}"`);
-    query('INSERT INTO login_history (id, user_id, ip_address, user_agent, method, success) VALUES ($1, $2, $3, $4, $5, 0)', [generateUuid(), user.id, ip, ua, 'password']).catch(() => {});
+    recordLoginAttempt(user.id, ip, ua, 'password', false);
     res.status(403).json({ error: 'FORCE_PASSWORD_CHANGE', message: 'You must change your password before logging in. Please use the password reset flow.' });
     return;
   }
 
-  // Record successful login
-  query('INSERT INTO login_history (id, user_id, ip_address, user_agent, method, success) VALUES ($1, $2, $3, $4, $5, 1)', [generateUuid(), user.id, ip, ua, 'password']).catch(() => {});
+  recordLoginAttempt(user.id, ip, ua, 'password', true);
 
   const token = await signToken({ id: user.id, email: user.email }, user.token_version ?? 0);
   const refresh = await createRefreshToken(user.id);
@@ -96,7 +94,7 @@ router.post('/login', asyncHandler(async (req, res) => {
 
   // Use persisted active_location_id if user is still a member
   let activeLocationId: string | null = null;
-  if (user.active_location_id && await isLocationMember(user.active_location_id, user.id)) {
+  if (user.active_location_id && await verifyLocationMembership(user.active_location_id, user.id)) {
     activeLocationId = user.active_location_id;
   }
 
