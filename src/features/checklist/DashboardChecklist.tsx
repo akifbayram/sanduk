@@ -1,7 +1,7 @@
 import { Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getCommandInputRef } from '@/features/tour/TourProvider';
-import { closeButton, cn, focusRing } from '@/lib/utils';
+import { cn, focusRing } from '@/lib/utils';
 import { ChecklistItem } from './ChecklistItem';
 import { useChecklist } from './useChecklist';
 
@@ -63,7 +63,10 @@ export function DashboardChecklist({ totalBins, setCreateOpen, onUpgradeClick }:
           type="button"
           onClick={dismiss}
           aria-label="Dismiss checklist"
-          className={cn(closeButton, focusRing)}
+          className={cn(
+            'h-7 w-7 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-active)] transition-colors',
+            focusRing,
+          )}
         >
           <X className="h-4 w-4" />
         </button>
