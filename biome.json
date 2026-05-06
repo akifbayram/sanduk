@@ -33,6 +33,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/**/__tests__/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
     }
   ]
 }

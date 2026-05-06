@@ -93,6 +93,15 @@ vi.mock('@/lib/useTranscription', () => ({
   }),
 }));
 
+vi.mock('@/lib/userPreferences', () => ({
+  useUserPreferences: () => ({
+    preferences: { ai_asked_at: null },
+    isLoading: false,
+    updatePreferences: vi.fn(),
+  }),
+  notifyPreferencesChanged: vi.fn(),
+}));
+
 vi.mock('@/features/tour/TourLauncher', () => ({
   TourLauncher: () => null,
 }));

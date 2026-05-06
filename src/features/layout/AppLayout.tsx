@@ -11,7 +11,9 @@ import { useFirstBinIds } from '@/features/bins/useBins';
 import { useLocationList } from '@/features/locations/useLocations';
 import { DemoCtaOverlay } from '@/features/onboarding/DemoCtaOverlay';
 import { OnboardingOverlay } from '@/features/onboarding/OnboardingOverlay';
+import { ThinLocationGate } from '@/features/onboarding/ThinLocationGate';
 import { useOnboarding } from '@/features/onboarding/useOnboarding';
+import { useThinGate } from '@/features/onboarding/useThinGate';
 import { ScanDialogContext } from '@/features/qrcode/ScanDialogContext';
 import { TagColorsProvider } from '@/features/tags/TagColorsContext';
 import { TourBanner } from '@/features/tour/TourBanner';
@@ -62,6 +64,7 @@ export function AppLayout() {
   const { activeLocationId, setActiveLocationId, demoMode } = useAuth();
   const { locations, isLoading: locationsLoading } = useLocationList();
   const onboarding = useOnboarding(demoMode);
+  const thinGate = useThinGate();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('openbin-install-dismissed') === '1');
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -147,11 +150,9 @@ export function AppLayout() {
 
   useKeyboardShortcuts({ actions: shortcutActions, enabled: !onboarding.isOnboarding && preferences.keyboard_shortcuts_enabled });
 
-  // If the user already has locations before onboarding even started (e.g. completed on
-  // another device), mark it done locally so the overlay never shows. Only check once —
-  // the first time locations finish loading — to avoid a race condition where
-  // createLocation's notifyLocationsChanged() refetch resolves before advanceWithLocation
-  // updates the step from 0 to 1, which would incorrectly auto-complete the onboarding.
+  // If the user already has locations on first load (e.g. completed on another device),
+  // mark onboarding done so the demo overlay never shows. Only check once to avoid racing
+  // with advanceWithLocation while the demo flow is mid-step.
   const didAutoCompleteCheck = useRef(false);
   useEffect(() => {
     if (didAutoCompleteCheck.current) return;
@@ -332,7 +333,8 @@ export function AppLayout() {
           </button>
         </div>
       )}
-      {onboarding.isOnboarding && !onboarding.isLoading && (locationsLoading ? onboarding.step > 0 : (locations.length === 0 || onboarding.step > 0 || demoMode)) && (
+      {!demoMode && thinGate.needsLocation && <ThinLocationGate />}
+      {demoMode && onboarding.isOnboarding && !onboarding.isLoading && (
         <OnboardingOverlay
           step={onboarding.step}
           totalSteps={onboarding.totalSteps}

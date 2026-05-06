@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/api';
 
 export interface UserPreferences {
   dashboard_recent_bins_count: number;
+  dashboard_show_checklist: boolean;
   dashboard_show_stats: boolean;
   dashboard_show_needs_organizing: boolean;
   dashboard_show_saved_views: boolean;
@@ -24,10 +25,15 @@ export interface UserPreferences {
   usage_tracking_modify: boolean;
   usage_granularity: 'daily' | 'weekly' | 'monthly';
   dismissed_upgrade_prompts: string[];
+  checklist_eligible: boolean;
+  checklist_dismissed_at: string | null;
+  ai_asked_at: string | null;
+  print_visited_at: string | null;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   dashboard_recent_bins_count: 5,
+  dashboard_show_checklist: true,
   dashboard_show_stats: true,
   dashboard_show_needs_organizing: true,
   dashboard_show_saved_views: true,
@@ -49,6 +55,10 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   usage_tracking_modify: true,
   usage_granularity: 'daily',
   dismissed_upgrade_prompts: [],
+  checklist_eligible: false,
+  checklist_dismissed_at: null,
+  ai_asked_at: null,
+  print_visited_at: null,
 };
 
 const PREFERENCES_EVENT = 'user-preferences-changed';

@@ -42,6 +42,15 @@ vi.mock('@/components/ui/toast', () => ({
   useToast: () => ({ showToast: mockShowToast }),
 }));
 
+vi.mock('@/lib/userPreferences', () => ({
+  useUserPreferences: () => ({
+    preferences: { ai_asked_at: null },
+    isLoading: false,
+    updatePreferences: vi.fn(),
+  }),
+  notifyPreferencesChanged: vi.fn(),
+}));
+
 describe('useConversation - ask flow', () => {
   beforeEach(() => {
     mockAsk.mockReset();
