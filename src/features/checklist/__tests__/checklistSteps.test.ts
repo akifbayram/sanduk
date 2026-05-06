@@ -3,7 +3,6 @@ import { CHECKLIST_STEPS, type ChecklistContext } from '../checklistSteps';
 
 const baseCtx: ChecklistContext = {
   totalBins: 0,
-  hasPhoto: false,
   aiAskedAt: null,
   printVisitedAt: null,
 };

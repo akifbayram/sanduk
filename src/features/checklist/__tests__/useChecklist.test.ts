@@ -11,9 +11,6 @@ vi.mock('@/lib/aiToggle', () => ({
 vi.mock('@/lib/usePermissions', () => ({
   usePermissions: vi.fn(),
 }));
-vi.mock('../useHasAnyPhoto', () => ({
-  useHasAnyPhoto: () => false,
-}));
 
 import { useAiEnabled } from '@/lib/aiToggle';
 import { usePermissions } from '@/lib/usePermissions';
@@ -36,6 +33,7 @@ function setup({
     checklist_dismissed_at: string | null;
     ai_asked_at: string | null;
     print_visited_at: string | null;
+    ai_enabled: boolean;
   }>;
   aiEnabled?: boolean;
   aiGated?: boolean;
@@ -47,12 +45,13 @@ function setup({
       checklist_dismissed_at: null,
       ai_asked_at: null,
       print_visited_at: null,
+      ai_enabled: aiEnabled,
       ...prefs,
     } as any,
     isLoading: false,
     updatePreferences: vi.fn(),
   } as any);
-  mockedAi.mockReturnValue({ aiEnabled, aiGated } as any);
+  mockedAi.mockReturnValue({ aiEnabled: aiEnabled && !aiGated, aiGated } as any);
   mockedPerms.mockReturnValue({ canCreateBin } as any);
   return renderHook(() => useChecklist({ totalBins }));
 }
@@ -121,6 +120,7 @@ describe('useChecklist', () => {
         checklist_dismissed_at: null,
         ai_asked_at: null,
         print_visited_at: null,
+        ai_enabled: true,
       } as any,
       isLoading: false,
       updatePreferences,

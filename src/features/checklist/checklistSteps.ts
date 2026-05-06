@@ -5,7 +5,6 @@ export type ChecklistStepId = 'create-bin' | 'add-three-bins' | 'ask-ai' | 'prin
 
 export interface ChecklistContext {
   totalBins: number;
-  hasPhoto: boolean;
   aiAskedAt: string | null;
   printVisitedAt: string | null;
 }

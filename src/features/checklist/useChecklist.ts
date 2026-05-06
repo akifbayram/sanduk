@@ -3,7 +3,6 @@ import { useAiEnabled } from '@/lib/aiToggle';
 import { usePermissions } from '@/lib/usePermissions';
 import { useUserPreferences } from '@/lib/userPreferences';
 import { CHECKLIST_STEPS, type ChecklistStep } from './checklistSteps';
-import { useHasAnyPhoto } from './useHasAnyPhoto';
 
 export interface ChecklistRow extends ChecklistStep {
   complete: boolean;
@@ -23,20 +22,18 @@ interface UseChecklistArgs {
 
 export function useChecklist({ totalBins }: UseChecklistArgs): UseChecklistResult {
   const { preferences, updatePreferences } = useUserPreferences();
-  const { aiEnabled, aiGated } = useAiEnabled();
+  const { aiGated } = useAiEnabled();
   const { canCreateBin } = usePermissions();
-  const hasPhoto = useHasAnyPhoto();
 
   const steps = useMemo<ChecklistRow[]>(() => {
     const ctx = {
       totalBins,
-      hasPhoto,
       aiAskedAt: preferences.ai_asked_at,
       printVisitedAt: preferences.print_visited_at,
     };
     return CHECKLIST_STEPS
       .filter((step) => {
-        if (step.id === 'ask-ai' && !aiEnabled) return false;
+        if (step.id === 'ask-ai' && !preferences.ai_enabled) return false;
         if (step.id === 'print-label' && totalBins < 1) return false;
         return true;
       })
@@ -45,7 +42,7 @@ export function useChecklist({ totalBins }: UseChecklistArgs): UseChecklistResul
         complete: step.isComplete(ctx),
         gated: step.id === 'ask-ai' ? aiGated : undefined,
       }));
-  }, [totalBins, hasPhoto, preferences.ai_asked_at, preferences.print_visited_at, aiEnabled, aiGated]);
+  }, [totalBins, preferences.ai_asked_at, preferences.print_visited_at, preferences.ai_enabled, aiGated]);
 
   const completedCount = steps.filter((s) => s.complete).length;
   const allComplete = steps.length > 0 && completedCount === steps.length;
