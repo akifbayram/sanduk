@@ -1,6 +1,7 @@
 import { type MutableRefObject, useCallback, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import type { useToast } from '@/components/ui/toast';
+import { notifyPreferencesChanged } from '@/lib/userPreferences';
 import { mapAiError } from './aiErrors';
 import {
   askClassifiedToTurn,
@@ -89,6 +90,7 @@ export function useAskFlow({
         const classified = classifyResult(result as never);
         const aiTurn = askClassifiedToTurn(thinkingTurn.id, classified, binMapRef.current);
         setTurns((curr) => replaceTurn(curr, thinkingTurn.id, aiTurn));
+        notifyPreferencesChanged();
       } catch (err) {
         // Aborted requests (from cancelStreaming) are user-initiated — don't show an error.
         if (err instanceof DOMException && err.name === 'AbortError') return;
