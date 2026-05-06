@@ -24,7 +24,6 @@ export interface UserPreferences {
   usage_tracking_modify: boolean;
   usage_granularity: 'daily' | 'weekly' | 'monthly';
   dismissed_upgrade_prompts: string[];
-  // Onboarding checklist (added 2026-05-06)
   checklist_eligible: boolean;
   checklist_dismissed_at: string | null;
   ai_asked_at: string | null;
