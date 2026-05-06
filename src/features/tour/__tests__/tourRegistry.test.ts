@@ -90,8 +90,17 @@ describe('tour registry', () => {
     const fileContents: string[] = allFiles
       .filter((f) => !f.includes('/features/tour/tours/'))
       .map((f) => fs.readFileSync(f, 'utf8'));
+    // Accept either a literal data-tour="X" attribute or a forwarded
+    // dataTour="X" JSX prop — components like ShutterButton bind data-tour
+    // dynamically from a prop, so the literal attribute string is absent
+    // from the leaf source even though the runtime DOM has it.
     const missing = [...selectors].filter(
-      (sel) => !fileContents.some((content) => content.includes(`data-tour="${sel}"`)),
+      (sel) =>
+        !fileContents.some(
+          (content) =>
+            content.includes(`data-tour="${sel}"`) ||
+            content.includes(`dataTour="${sel}"`),
+        ),
     );
     expect(missing, `missing data-tour anchors: ${missing.join(', ')}`).toEqual([]);
   });
