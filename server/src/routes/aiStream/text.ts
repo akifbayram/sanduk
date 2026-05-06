@@ -55,8 +55,12 @@ async function streamPlannedQuery(
       if (!safe.success) {
         return { answer: "I couldn't understand that. Try rephrasing your question.", matches: [] };
       }
-      const executed = await executeQueryPlan(validateQueryPlan(safe.data), locationId, req.user!.id, scopedBinIds);
-      return { answer: executed.answer, matches: executed.matches };
+      try {
+        const executed = await executeQueryPlan(validateQueryPlan(safe.data), locationId, req.user!.id, scopedBinIds);
+        return { answer: executed.answer, matches: executed.matches };
+      } catch {
+        return { answer: "I couldn't understand that. Try rephrasing your question.", matches: [] };
+      }
     },
   });
 }
@@ -133,7 +137,9 @@ router.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCredits(
     const trimmed = text.trim();
     const hasCommandVerb = /\b(add|remove|delete|move|create|update|put|take|pin|unpin|set|change|rename|tag|untag|clear|make|mark|assign|merge|split|restore)\b/i.test(trimmed);
     const wordCount = trimmed.split(/\s+/).length;
-    const isConfirmation = priorMessages.length > 0 && /^(yes|yeah|yep|sure|ok(ay)?|the\s+(first|second|third|last|one|other)|that\s+one|those)\b/i.test(trimmed);
+    const isConfirmation = priorMessages.length > 0
+      && !hasCommandVerb
+      && /^(yes|yeah|yep|sure|ok(ay)?|the\s+(first|second|third|last|one|other)|that\s+one|those)\b/i.test(trimmed);
     const isShortNoun = wordCount <= 4 && !hasCommandVerb;
     if (isConfirmation || isShortNoun) {
       intent = 'query';
