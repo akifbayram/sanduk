@@ -18,7 +18,9 @@ import { config, isDemoUser } from '../lib/config.js';
 import { parseHistoryFromBody } from '../lib/conversationHistory.js';
 import { ForbiddenError, ValidationError } from '../lib/httpErrors.js';
 import { classifyIntent } from '../lib/intentClassifier.js';
-import { buildSystemPrompt as buildQuerySysPrompt, buildUserMessage as buildQueryUserMsg, enrichQueryMatches, type RawMatch } from '../lib/inventoryQuery.js';
+import type { CandidateBin } from '../lib/inventoryMatcher.js';
+import { buildFormatterSystemPrompt, buildFormatterUserMessage, buildSystemPrompt as buildQuerySysPrompt, buildUserMessage as buildQueryUserMsg, enrichQueryMatches, type RawMatch } from '../lib/inventoryQuery.js';
+import { applyMatchSetGuard, runDeterministicQuery } from '../lib/inventoryQueryDeterministic.js';
 import { assertReorganizeBinLimit, refundAiCredit } from '../lib/planGate.js';
 import { aiRateLimiters } from '../lib/rateLimiters.js';
 import { detectReorganizeMismatch } from '../lib/reorganizeMismatch.js';
@@ -61,6 +63,15 @@ function makeQueryEnrichResult(locationId: string, userId: string) {
     const enriched = await enrichQueryMatches(matches, locationId, userId);
     return { answer: r.answer ?? '', matches: enriched };
   };
+}
+
+/**
+ * Enricher for the deterministic query path. The LLM emits candidate
+ * bin_codes with relevance strings; we intersect with the server's pre-matched
+ * set and hydrate with full bin data.
+ */
+function makeFormatterEnrichResult(candidates: CandidateBin[]) {
+  return async (parsed: unknown) => applyMatchSetGuard(parsed, candidates);
 }
 
 /**
@@ -148,11 +159,41 @@ function reorganizeBinCountFromReq(req: import('express').Request): number {
   return Array.isArray(body.bins) ? body.bins.length : 0;
 }
 
+async function streamDeterministicQuery(
+  res: import('express').Response,
+  req: import('express').Request,
+  question: string,
+  locationId: string,
+  scopedBinIds: string[] | undefined,
+  scopeNote: string,
+  priorMessages: import('ai').ModelMessage[],
+): Promise<void> {
+  const { settings, model } = await resolveUserModel(req.user!.id, 'query', isDemoUser(req));
+  const matchResult = await runDeterministicQuery(locationId, req.user!.id, question, scopedBinIds);
+  const userPayload = buildFormatterUserMessage(`${scopeNote}${question}`, matchResult);
+
+  await pipeAiStreamToResponse(res, model, {
+    schema: undefined, // intentionally unconstrained — formatter prompt + post-filter handle shape
+    system: buildFormatterSystemPrompt(settings.query_prompt ?? undefined, isDemoUser(req)),
+    userContent: userPayload,
+    priorMessages,
+    ...streamOpts(settings, req, { maxTokens: 1500, temperature: 0.2 }),
+    enrichResult: makeFormatterEnrichResult(matchResult.candidates),
+  });
+}
+
 // POST /api/ai/query/stream
 streamRouter.post('/query/stream', ...aiRateLimiters, requireAiAccess(), checkAiCredits(), requireLocationMemberOrAbove(), aiRouteHandler('stream query', async (req, res) => {
   const question = validateTextInput(req.body.question, 'question');
   const { locationId } = req.body;
   const priorMessages = parseHistoryFromBody(req.body);
+
+  if (config.aiDeterministicMatch) {
+    await streamDeterministicQuery(res, req, question, locationId, undefined, '', priorMessages);
+    return;
+  }
+
+  // ── Legacy path (unchanged) ──
   const [{ settings, model }, context] = await Promise.all([
     resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
     buildInventoryContext(locationId, req.user!.id, undefined, question),
@@ -205,6 +246,10 @@ streamRouter.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCr
   const intent = classifyIntent(text);
 
   if (intent === 'query') {
+    if (config.aiDeterministicMatch) {
+      await streamDeterministicQuery(res, req, text, locationId, binIds, scopeNote, priorMessages);
+      return;
+    }
     const [{ settings, model }, queryContext] = await Promise.all([
       resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
       buildInventoryContext(locationId, req.user!.id, binIds, text),
