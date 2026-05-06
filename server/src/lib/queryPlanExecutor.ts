@@ -1,4 +1,4 @@
-import { normalizeForCompare } from './inventoryMatch.js';
+import { normalizeForCompare, normalizeForMatch } from './inventoryMatch.js';
 import {
   type CandidateBin,
   findCheckedOutMatches,
@@ -54,16 +54,21 @@ function hydrate(c: CandidateBin, relevance: string): HydratedMatch {
 
 function applyFieldFilter(candidates: CandidateBin[], fields: Array<'name' | 'tag' | 'item'>, terms: string[]): CandidateBin[] {
   if (fields.length === 0) return candidates;
-  const stems = terms.map(normalizeForCompare).filter((s) => s.length >= 2);
-  if (stems.length === 0) return candidates;
+  // Mirror findLiteralMatches: try BOTH stemmed and un-stemmed forms so that
+  // a haystack like the literal tag "hobbies" still matches the term "hobbies"
+  // (whose stem is "hobby", which is not a substring of "hobbies").
+  const stemmed = terms.map(normalizeForCompare).filter((s) => s.length >= 2);
+  const unstemmed = terms.map(normalizeForMatch).filter((s) => s.length >= 2);
+  const probes = [...new Set([...stemmed, ...unstemmed])];
+  if (probes.length === 0) return candidates;
   return candidates.filter((c) => {
     const nameLower = c.name.toLowerCase();
     const tagLowers = c.tags.map((t) => t.toLowerCase());
     const itemLowers = c.items.map((i) => i.name.toLowerCase());
-    for (const stem of stems) {
-      if (fields.includes('name') && nameLower.includes(stem)) return true;
-      if (fields.includes('tag') && tagLowers.some((t) => t.includes(stem))) return true;
-      if (fields.includes('item') && itemLowers.some((n) => n.includes(stem))) return true;
+    for (const probe of probes) {
+      if (fields.includes('name') && nameLower.includes(probe)) return true;
+      if (fields.includes('tag') && tagLowers.some((t) => t.includes(probe))) return true;
+      if (fields.includes('item') && itemLowers.some((n) => n.includes(probe))) return true;
     }
     return false;
   });

@@ -150,6 +150,32 @@ function reorganizeBinCountFromReq(req: import('express').Request): number {
   return Array.isArray(body.bins) ? body.bins.length : 0;
 }
 
+/**
+ * Some providers (Gemini in particular) rename keys when emitting structured
+ * output, even with a Zod schema constraint. Map the common aliases back to
+ * the canonical keys before Zod validation.
+ */
+function normalizePlanAliases(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== 'object') return parsed;
+  const o = parsed as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...o };
+  // discriminator aliases
+  if (out.kind === undefined) {
+    if (typeof o.plan === 'string') out.kind = o.plan;
+    else if (typeof o.type === 'string') out.kind = o.type;
+    else if (typeof o.intent === 'string') out.kind = o.intent;
+  }
+  // answer-field aliases
+  if (out.answer === undefined) {
+    if (typeof o.query_answer === 'string') out.answer = o.query_answer;
+    else if (typeof o.response === 'string') out.answer = o.response;
+    else if (typeof o.message === 'string') out.answer = o.message;
+  }
+  // terms-field aliases
+  if (out.terms === undefined && Array.isArray(o.search_terms)) out.terms = o.search_terms;
+  return out;
+}
+
 async function streamPlannedQuery(
   res: import('express').Response,
   req: import('express').Request,
@@ -169,7 +195,19 @@ async function streamPlannedQuery(
     priorMessages,
     ...streamOpts(settings, req, { maxTokens: 800, temperature: 0.2 }),
     enrichResult: async (parsed) => {
-      const plan = validateQueryPlan(parsed as Parameters<typeof validateQueryPlan>[0]);
+      // Re-validate via Zod safeParse: some providers (notably Gemini) silently
+      // rename keys in structured output ("kind" → "plan", "answer" → "query_answer").
+      // Normalize known aliases before parsing, then fall back gracefully if the
+      // shape still doesn't match.
+      const normalized = normalizePlanAliases(parsed);
+      const safe = QueryPlanSchema.safeParse(normalized);
+      if (!safe.success) {
+        return {
+          answer: "I couldn't understand that. Try rephrasing your question.",
+          matches: [],
+        };
+      }
+      const plan = validateQueryPlan(safe.data);
       const executed = await executeQueryPlan(plan, locationId, req.user!.id, scopedBinIds);
       return { answer: executed.answer, matches: executed.matches };
     },
@@ -237,7 +275,24 @@ streamRouter.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCr
   const scopeNote = isScoped
     ? '\nSELECTION SCOPE: The user selected specific bins. The inventory context below contains ONLY these bins. Apply actions or answer based only on the bins provided.\n'
     : '';
-  const intent = classifyIntent(text);
+  let intent = classifyIntent(text);
+
+  // When the deterministic planner is enabled, prefer routing ambiguous bare-noun
+  // and conversational follow-up messages to the planner. The planner can decide
+  // (via refusal kind) when it cannot help, which is more useful than the legacy
+  // command path attempting to interpret a search intent as an action. This
+  // covers cases like "tools" (single noun), "yes" (confirmation after a near-miss),
+  // and "the red ones" (pronoun reference).
+  if (intent === 'ambiguous' && config.aiDeterministicMatch) {
+    const trimmed = text.trim();
+    const hasCommandVerb = /\b(add|remove|delete|move|create|update|put|take|pin|unpin|set|change|rename|tag|untag|clear|make|mark|assign|merge|split|restore)\b/i.test(trimmed);
+    const wordCount = trimmed.split(/\s+/).length;
+    const isConfirmation = priorMessages.length > 0 && /^(yes|yeah|yep|sure|ok(ay)?|the\s+(first|second|third|last|one|other)|that\s+one|those)\b/i.test(trimmed);
+    const isShortNoun = wordCount <= 4 && !hasCommandVerb;
+    if (isConfirmation || isShortNoun) {
+      intent = 'query';
+    }
+  }
 
   if (intent === 'query') {
     if (config.aiDeterministicMatch) {

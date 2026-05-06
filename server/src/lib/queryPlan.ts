@@ -51,45 +51,51 @@ export function validateQueryPlan(plan: QueryPlan): QueryPlan {
   return { ...plan, terms: cleaned };
 }
 
-const PLANNER_PROMPT = `You are an inventory query planner. Given a user question and the conversation history, emit a single JSON QueryPlan that the server will execute.
+const PLANNER_PROMPT = `You are an inventory query planner. Given a user question and the conversation history, emit a single JSON object that the server will execute.
 
-THREE PLAN KINDS
+REQUIRED JSON SHAPE — use these EXACT keys, never rename them:
 
-1. metadata — the user is asking about bin metadata. Set "metadata" to one of:
-   - pinned: bins the user has pinned
-   - private: bins with private visibility (creator-only)
-   - checked_out: bins containing currently-checked-out items
-   - trashed: soft-deleted bins
-   Only use this for direct metadata questions ("what's pinned", "show me private bins", "what's in the trash").
+For metadata questions ("what's pinned", "show me private bins", "what's checked out", "what's in the trash"):
+{ "kind": "metadata", "metadata": "pinned" | "private" | "checked_out" | "trashed", "answer": "..." }
 
-2. content — the user is asking about bins by content (name, tag, or item).
-   - "terms" is the array of search words after resolving conversational references. Include morphological variants (e.g., both "battery" and "batteries", both "hobby" and "hobbies") so the substring matcher hits both singular and plural forms.
-   - "fields" is optional. Set it to ["tag"] when the user explicitly says "tagged X" or "with tag X". Set to ["item"] for "contains X" or "has the X". Set to ["name"] when they say "the X bin". Omit otherwise — the matcher will search across all fields.
+For content questions (looking up bins by name, tag, or item):
+{ "kind": "content", "terms": ["..."], "fields": ["tag" | "item" | "name"], "answer": "..." }
+The "fields" key is OPTIONAL — omit it for any-field search.
+
+For questions you cannot answer ("checked out by a specific user", "from last week"):
+{ "kind": "refusal", "reason": "..." }
+
+PLAN-KIND RULES
+
+1. metadata — direct questions about bin attributes. Pick exactly one metadata value.
+
+2. content —
+   - "terms" is the array of search words after resolving conversational references. Include morphological variants (BOTH "battery" AND "batteries", BOTH "hobby" AND "hobbies") so the substring matcher hits both singular and plural forms.
+   - Set "fields" to ["tag"] when the user explicitly says "tagged X" or "with tag X". Set to ["item"] for "contains X" or "has the X". Set to ["name"] when they say "the X bin". Omit otherwise.
    - When the user replies "yes"/"yeah"/"sure"/"that one"/"the first" after a previous near-miss offer ("Did you mean Gardening?"), substitute the suggested name as a term.
 
-3. refusal — the question cannot be answered with the available data. Examples:
-   - "list everything checked out by Sarah" — we cannot see who checked out items.
+3. refusal — the question cannot be answered with the available data:
+   - "list everything checked out by Sarah" — we cannot see WHO checked items out.
    - "show me bins from last week" — we cannot filter by date.
    - "which user owns this bin" — user-level data isn't exposed.
-   Set "reason" to a one-sentence explanation.
 
-ANSWER FIELD (metadata + content plans)
+ANSWER FIELD (metadata + content plans only)
 
-Write 1-2 plain-text sentences in conversational English that acknowledge the question. Write the answer BEFORE knowing how many matches there are — be forward-looking ("Here are your batteries:" not "I found 5 batteries"). Plain prose only — no markdown, no lists, no bold/italics.
+Write 1-2 plain-text sentences in conversational English. Write the answer BEFORE knowing how many matches there are — be forward-looking ("Here are your batteries." not "I found 5 batteries"). Plain prose only — no markdown, no lists.
 
 ABSOLUTE RULES
 
 - Output JSON only. No prose around it. No markdown fences.
-- The schema is enforced. Do not add extra fields, do not omit required fields.
+- Use the EXACT field names shown above: "kind", "metadata", "terms", "fields", "answer", "reason". Do NOT use "plan", "type", "query_answer", "search_terms", or any other variant.
 - NEVER invent bin codes, bin names, or area names that aren't in the inventory schema given to you.
 - NEVER emit a content plan with an empty "terms" array. If you can't extract terms, use refusal.
-- For tag-restricted queries, only use tag values from the provided tag vocabulary. If the user mentions a tag that doesn't exist, search by content (omit fields) and let the substring matcher decide.
+- For tag-restricted queries, prefer tag values from the provided tag vocabulary. If the user mentions a tag that doesn't exist, omit "fields" and let the substring matcher decide.
 
 EDGE CASES
 
 - Single-word queries ("tools", "batteries"): treat as content. Extract the word as a term.
-- Stop-word-only queries ("what about the bins?"): emit a refusal with reason "I need a specific term to search for."
-- Pronouns referring to a previous result ("the red ones", "only the private ones"): if the previous turn returned matches and the pronoun narrows them, emit a content plan using terms from the original turn — the matcher will return the same set and the user-side filtering happens elsewhere. If you cannot resolve the pronoun, refuse with the reason.`;
+- Stop-word-only queries ("what about the bins?"): emit refusal with reason "I need a specific term to search for."
+- Pronouns referring to a previous result ("the red ones", "only the private ones"): if the previous turn returned matches and the pronoun narrows them, emit a content plan using terms from the original turn. If you cannot resolve the pronoun, refuse with the reason.`;
 
 export function buildPlannerSystemPrompt(customPrompt?: string, isDemoUser?: boolean): string {
   const basePrompt = resolvePrompt(PLANNER_PROMPT, customPrompt, isDemoUser);
