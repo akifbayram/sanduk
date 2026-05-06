@@ -191,15 +191,6 @@ export function useCapture(binId?: string) {
     }
   }, [stopCamera]);
 
-  const setPhotoGroupId = useCallback(
-    (photoId: string, groupId: number) => {
-      updatePhotos((prev) =>
-        prev.map((p) => (p.id === photoId ? { ...p, groupId } : p)),
-      );
-    },
-    [updatePhotos],
-  );
-
   const appendImportedPhoto = useCallback(
     (blob: Blob, groupId?: number) => {
       const id = `import-${nextId.current++}`;
@@ -230,15 +221,12 @@ export function useCapture(binId?: string) {
   return {
     videoRef,
     isStreaming,
-    facingMode,
     photos,
     error,
     startCamera,
-    stopCamera,
     flipCamera,
     capture,
     retryUpload,
-    setPhotoGroupId,
     appendImportedPhoto,
     removePhoto,
     cleanup,

@@ -24,7 +24,7 @@ describe('POST /api/ai/reorganize-tags/stream', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('is registered on the stream router', async () => {
-    const { streamRouter } = await import('../aiStream.js');
+    const { default: streamRouter } = await import('../aiStream/reorganize.js');
     const route = (streamRouter as any).stack.find(
       (l: any) => l.route?.path === '/reorganize-tags/stream' && l.route?.methods?.post,
     );
@@ -32,7 +32,7 @@ describe('POST /api/ai/reorganize-tags/stream', () => {
   });
 
   it('rejects empty bins array', async () => {
-    const { streamRouter } = await import('../aiStream.js');
+    const { default: streamRouter } = await import('../aiStream/reorganize.js');
     const layer = (streamRouter as any).stack.find(
       (l: any) => l.route?.path === '/reorganize-tags/stream',
     );

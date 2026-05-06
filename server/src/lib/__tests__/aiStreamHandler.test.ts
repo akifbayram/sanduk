@@ -34,9 +34,8 @@ vi.mock('../sdkProviderFactory.js', () => ({
   createSdkModel: vi.fn(() => ({})),
 }));
 
-vi.mock('../aiCaller.js', () => ({
-  validateEndpointUrl: vi.fn(async () => undefined),
-  createPinnedFetch: vi.fn(() => undefined),
+vi.mock('../aiSsrf.js', () => ({
+  resolvePinnedFetch: vi.fn(async () => undefined),
 }));
 
 vi.mock('../binAccess.js', () => ({

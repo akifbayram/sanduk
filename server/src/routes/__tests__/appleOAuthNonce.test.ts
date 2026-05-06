@@ -63,7 +63,7 @@ vi.mock('../../lib/routeHelpers.js', () => ({
   logRouteActivity: vi.fn(),
 }));
 
-const { default: router } = await import('../auth.js');
+const { default: router } = await import('../auth/oauth.js');
 
 function getAppleCallbackHandler() {
   const layer = (router as any).stack.find(

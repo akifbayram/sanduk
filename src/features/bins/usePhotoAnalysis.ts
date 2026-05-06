@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_AI_PHOTOS } from '@/features/ai/aiConstants';
 import type { AnalyzeStreamMode } from '@/features/ai/analyzeLabel';
 import { useAiStream } from '@/features/ai/useAiStream';
-import { compressImageForAi } from '@/features/photos/compressImageForAi';
+import { buildAiPhotoFormData, compressPhotosForAi } from '@/features/photos/aiPhotoFormData';
 import type { AiSuggestions } from '@/types';
 
 interface UsePhotoAnalysisOptions {
@@ -10,29 +10,6 @@ interface UsePhotoAnalysisOptions {
   aiConfigured: boolean;
   onApplyDirect?: (result: AiSuggestions) => void;
   onAiSetupNeeded?: () => void;
-}
-
-async function compressPhotos(photos: File[]): Promise<File[]> {
-  return Promise.all(
-    photos.map(async (p) => {
-      const compressed = await compressImageForAi(p);
-      return compressed instanceof File
-        ? compressed
-        : new File([compressed], p.name, { type: compressed.type || 'image/jpeg' });
-    })
-  );
-}
-
-function buildPhotoFormData(photos: File[], locationId?: string, previousResult?: AiSuggestions): FormData {
-  const formData = new FormData();
-  if (photos.length === 1) {
-    formData.append('photo', photos[0]);
-  } else {
-    for (const file of photos) formData.append('photos', file);
-  }
-  if (previousResult) formData.append('previousResult', JSON.stringify(previousResult));
-  if (locationId) formData.append('locationId', locationId);
-  return formData;
 }
 
 export function usePhotoAnalysis({
@@ -114,8 +91,8 @@ export function usePhotoAnalysis({
       return;
     }
     reanalyze.clear();
-    const compressed = await compressPhotos(photos);
-    const result = await analyze.stream(buildPhotoFormData(compressed, locationId));
+    const compressed = await compressPhotosForAi(photos);
+    const result = await analyze.stream(buildAiPhotoFormData({ photos: compressed, locationId }));
     if (result) onApplyDirect?.(result);
   }
 
@@ -126,8 +103,8 @@ export function usePhotoAnalysis({
       return;
     }
     analyze.clear();
-    const compressed = await compressPhotos(photos);
-    const result = await reanalyze.stream(buildPhotoFormData(compressed, locationId, previousResult));
+    const compressed = await compressPhotosForAi(photos);
+    const result = await reanalyze.stream(buildAiPhotoFormData({ photos: compressed, locationId, previousResult }));
     if (result) onApplyDirect?.(result);
   }
 

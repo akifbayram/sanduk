@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAiStream } from '@/features/ai/useAiStream';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -60,9 +60,13 @@ export function useReorganizeTags() {
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  const partialResult: PartialTagProposal = partialText
-    ? parsePartialTagProposal(partialText)
-    : { taxonomy: { newTags: [], renames: [], merges: [], parents: [] }, assignments: [], summary: '' };
+  const partialResult: PartialTagProposal = useMemo(
+    () =>
+      partialText
+        ? parsePartialTagProposal(partialText)
+        : { taxonomy: { newTags: [], renames: [], merges: [], parents: [] }, assignments: [], summary: '' },
+    [partialText],
+  );
 
   const start = useCallback(
     (bins: Bin[], options: TagSuggestOptions) => {

@@ -22,7 +22,7 @@ vi.mock('../../lib/tagMutations.js', () => ({
 }));
 vi.mock('../../lib/config.js', () => ({ config: { bulkMaxSelection: 200 } }));
 
-const { default: router } = await import('../tags.js');
+const { default: router } = await import('../tags/bulkOps.js');
 
 function findHandler(method: 'post', path: string) {
   const layer = (router as any).stack.find(

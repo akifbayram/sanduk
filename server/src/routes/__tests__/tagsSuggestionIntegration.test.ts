@@ -75,8 +75,8 @@ describe('Tag suggestion end-to-end', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('stream produces a proposal in mock mode, then apply commits it', async () => {
-    const { streamRouter } = await import('../aiStream.js');
-    const { default: tagsRouter } = await import('../tags.js');
+    const { default: streamRouter } = await import('../aiStream/reorganize.js');
+    const { default: tagsRouter } = await import('../tags/bulkApply.js');
 
     // Mock the tag colors query
     mockQuery.mockResolvedValue({ rows: [{ tag: 'utensils', parent: null }] });
