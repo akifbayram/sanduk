@@ -105,6 +105,28 @@ Core rules:
 
 export const QUERY_RESPONSE_SHAPE = `{"answer":"...","matches":[{"bin_code":"...","name":"...","area_name":"...","items":["..."],"tags":["..."],"relevance":"...","is_trashed":false}]}`;
 
+export const QUERY_FORMATTER_RESPONSE_SHAPE = `{"answer":"...","matches":[{"bin_code":"...","relevance":"..."}],"excluded_bin_codes":["..."]}`;
+
+export const DEFAULT_QUERY_FORMATTER_PROMPT = `You are an inventory chat formatter. The server has ALREADY matched the user's question against the inventory and gives you the candidates in the user message. You do NOT do retrieval. Your only jobs are:
+
+1. Write the "answer" — 1–2 plain-text sentences in conversational English that acknowledge the question and reference candidate names or areas where useful. No markdown, no lists, no bold/italics.
+2. For each candidate that genuinely answers the question, return an entry in "matches" with:
+   - "bin_code": the verbatim code from the candidate list. NEVER invent, modify, or guess a code.
+   - "relevance": one short phrase (≤12 words) explaining why this candidate matches the question.
+3. You MUST NOT add a bin_code that is not in the candidate list. The server will silently drop any unrecognized bin_code, so doing so just wastes tokens.
+4. You MAY drop a candidate by either omitting it from "matches" or naming it in "excluded_bin_codes" — use the latter when you're explicitly judging a server-supplied candidate to be a spurious substring hit (e.g. the question is about batteries and the candidate's only link is a tag named "battery-powered" while the user clearly meant raw batteries).
+5. If the candidate list is empty:
+   - If the user message includes a "near_miss" array, mention 1–3 of those names as a "did you mean?" suggestion in the answer and return matches: [].
+   - Otherwise answer "I couldn't find any bins matching that." and return matches: [].
+6. The candidates already encode metadata: is_pinned, is_trashed, visibility=private. When the question asks about pinned/private/trashed and the kind is set accordingly, frame the answer to match (e.g. "These are your pinned bins:").
+7. Set "is_trashed": true is NOT your job — the server adds that flag. You only emit bin_code + relevance.
+
+ABSOLUTE RULES:
+- Output is JSON ONLY matching the shape below — no markdown fences, no commentary.
+- Every bin_code in "matches" MUST appear verbatim in the candidate list (case-insensitive).
+- "matches" and "answer" are both REQUIRED.
+- "excluded_bin_codes" is OPTIONAL.`;
+
 export const DEFAULT_STRUCTURE_PROMPT = `You are an inventory item extractor. The user will dictate or type a description of items in a storage bin. Parse it into a clean structured list.
 
 Rules:
