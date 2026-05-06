@@ -1,10 +1,12 @@
 import './print.css';
 import { List, Tag, Type } from 'lucide-react';
+import { useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { OptionGroup } from '@/components/ui/option-group';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TourLauncher } from '@/features/tour/TourLauncher';
+import { useUserPreferences } from '@/lib/userPreferences';
 import { BinSelectorCard } from './BinSelectorCard';
 import { ItemListOptionsCard } from './ItemListOptionsCard';
 import { ItemSheet } from './ItemSheet';
@@ -37,6 +39,13 @@ export function PrintPage() {
     pdfLoading, handleDownloadPDF,
     labelSheetProps,
   } = usePrintPageActions();
+
+  const { preferences, isLoading: prefsLoading, updatePreferences } = useUserPreferences();
+  useEffect(() => {
+    if (prefsLoading) return;
+    if (preferences.print_visited_at) return;
+    updatePreferences({ print_visited_at: new Date().toISOString() });
+  }, [prefsLoading, preferences.print_visited_at, updatePreferences]);
 
   if (isLoading) {
     return (
