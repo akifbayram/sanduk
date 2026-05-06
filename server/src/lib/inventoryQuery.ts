@@ -1,7 +1,6 @@
 import { resolvePrompt, sanitizeForPrompt, withHardening } from './aiSanitize.js';
 import { fetchBinById } from './binQueries.js';
-import { DEFAULT_QUERY_FORMATTER_PROMPT, DEFAULT_QUERY_PROMPT, QUERY_FORMATTER_RESPONSE_SHAPE, QUERY_RESPONSE_SHAPE } from './defaultPrompts.js';
-import type { CandidateBin, MatchResult } from './inventoryMatcher.js';
+import { DEFAULT_QUERY_PROMPT, QUERY_RESPONSE_SHAPE } from './defaultPrompts.js';
 import { createLogger } from './logger.js';
 import { resolveBinCode } from './resolveBinCode.js';
 
@@ -182,50 +181,3 @@ export async function enrichQueryMatches(
   return results.filter((r): r is QueryMatch => r !== null);
 }
 
-export function buildFormatterSystemPrompt(customPrompt?: string, isDemoUser?: boolean): string {
-  const basePrompt = resolvePrompt(DEFAULT_QUERY_FORMATTER_PROMPT, customPrompt, isDemoUser);
-  const composed = `${basePrompt}
-
-OUTPUT SHAPE:
-${QUERY_FORMATTER_RESPONSE_SHAPE}`;
-  return withHardening(composed);
-}
-
-interface FormatterCandidatePayload {
-  bin_code: string;
-  name: string;
-  area_name: string;
-  items: string[];
-  tags: string[];
-  visibility: 'location' | 'private';
-  is_pinned: boolean;
-  is_trashed: boolean;
-}
-
-function toFormatterPayload(c: CandidateBin): FormatterCandidatePayload {
-  return {
-    bin_code: c.bin_code,
-    name: c.name,
-    area_name: c.area_name,
-    items: c.items.map((i) => (i.quantity ? `${i.name} (×${i.quantity})` : i.name)),
-    tags: c.tags,
-    visibility: c.visibility,
-    is_pinned: c.is_pinned,
-    is_trashed: c.is_trashed,
-  };
-}
-
-export function buildFormatterUserMessage(question: string, result: MatchResult): string {
-  const payload: Record<string, unknown> = {
-    kind: result.kind,
-    candidates: result.candidates.map(toFormatterPayload),
-  };
-  if (result.candidates.length === 0 && result.near_misses.length > 0) {
-    payload.near_miss = result.near_misses.map((n) => ({ bin_code: n.bin_code, name: n.name }));
-  }
-  return `Question: ${sanitizeForPrompt(question)}
-
-<server_match_set>
-${JSON.stringify(payload)}
-</server_match_set>`;
-}
