@@ -24,7 +24,10 @@ export interface MatchResult {
   near_misses: CandidateBin[];
 }
 
-const CANDIDATE_SELECT = `
+// Built lazily so module load doesn't depend on the dialect having every
+// JSON helper installed (some unit tests mock `db.js` with a partial `d`).
+function candidateSelect(): string {
+  return `
   b.id AS bin_id,
   b.short_code AS bin_code,
   b.name,
@@ -40,6 +43,7 @@ const CANDIDATE_SELECT = `
   CASE WHEN pb.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_pinned,
   CASE WHEN b.deleted_at IS NOT NULL THEN 1 ELSE 0 END AS is_trashed
 `;
+}
 
 const CANDIDATE_FROM = `
   bins b
@@ -105,7 +109,7 @@ export async function findLiteralMatches(
   }
 
   const sql = `
-    SELECT ${CANDIDATE_SELECT}
+    SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
@@ -141,7 +145,7 @@ export async function findPinnedMatches(locationId: string, userId: string): Pro
   // Reuses the `pb` LEFT JOIN already in CANDIDATE_FROM — filter on it
   // instead of joining the same table again.
   const sql = `
-    SELECT ${CANDIDATE_SELECT}, pb.position AS pin_position
+    SELECT ${candidateSelect()}, pb.position AS pin_position
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
@@ -156,7 +160,7 @@ export async function findPinnedMatches(locationId: string, userId: string): Pro
 
 export async function findPrivateMatches(locationId: string, userId: string): Promise<CandidateBin[]> {
   const sql = `
-    SELECT ${CANDIDATE_SELECT}
+    SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
@@ -171,7 +175,7 @@ export async function findPrivateMatches(locationId: string, userId: string): Pr
 
 export async function findCheckedOutMatches(locationId: string, userId: string): Promise<CandidateBin[]> {
   const sql = `
-    SELECT ${CANDIDATE_SELECT}
+    SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
@@ -189,7 +193,7 @@ export async function findCheckedOutMatches(locationId: string, userId: string):
 
 export async function findTrashedMatches(locationId: string, userId: string): Promise<CandidateBin[]> {
   const sql = `
-    SELECT ${CANDIDATE_SELECT}
+    SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NOT NULL
@@ -209,7 +213,7 @@ export async function findNearMissBins(
   const term = normalizeForCompare(rawTerm);
   if (term.length < 2) return [];
   const sql = `
-    SELECT ${CANDIDATE_SELECT}
+    SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
