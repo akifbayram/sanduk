@@ -3,8 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DashboardSettings } from '@/lib/dashboardSettings';
 import { DashboardSettingsMenu } from '../DashboardSettingsMenu';
 
+vi.mock('@/lib/userPreferences', () => ({
+  useUserPreferences: () => ({ preferences: { checklist_eligible: false } }),
+}));
+
 const baseSettings: DashboardSettings = {
   recentBinsCount: 8,
+  showChecklist: true,
   showStats: true,
   showNeedsOrganizing: false,
   showSavedViews: true,

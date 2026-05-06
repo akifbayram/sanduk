@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/api';
 
 export interface UserPreferences {
   dashboard_recent_bins_count: number;
+  dashboard_show_checklist: boolean;
   dashboard_show_stats: boolean;
   dashboard_show_needs_organizing: boolean;
   dashboard_show_saved_views: boolean;
@@ -32,6 +33,7 @@ export interface UserPreferences {
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   dashboard_recent_bins_count: 5,
+  dashboard_show_checklist: true,
   dashboard_show_stats: true,
   dashboard_show_needs_organizing: true,
   dashboard_show_saved_views: true,

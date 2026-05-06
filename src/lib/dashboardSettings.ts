@@ -4,6 +4,7 @@ import { DEFAULT_PREFERENCES, useUserPreferences } from './userPreferences';
 
 export interface DashboardSettings {
   recentBinsCount: number;
+  showChecklist: boolean;
   showStats: boolean;
   showNeedsOrganizing: boolean;
   showSavedViews: boolean;
@@ -31,6 +32,7 @@ export function useDashboardSettings() {
       DASHBOARD_LIMITS.recentBinsCount.min,
       DASHBOARD_LIMITS.recentBinsCount.max,
     ),
+    showChecklist: preferences.dashboard_show_checklist,
     showStats: preferences.dashboard_show_stats,
     showNeedsOrganizing: preferences.dashboard_show_needs_organizing,
     showSavedViews: preferences.dashboard_show_saved_views,
@@ -46,6 +48,7 @@ export function useDashboardSettings() {
     if (patch.recentBinsCount !== undefined) {
       dbPatch.dashboard_recent_bins_count = clamp(patch.recentBinsCount, DASHBOARD_LIMITS.recentBinsCount.min, DASHBOARD_LIMITS.recentBinsCount.max);
     }
+    if (patch.showChecklist !== undefined) dbPatch.dashboard_show_checklist = patch.showChecklist;
     if (patch.showStats !== undefined) dbPatch.dashboard_show_stats = patch.showStats;
     if (patch.showNeedsOrganizing !== undefined) dbPatch.dashboard_show_needs_organizing = patch.showNeedsOrganizing;
     if (patch.showSavedViews !== undefined) dbPatch.dashboard_show_saved_views = patch.showSavedViews;
@@ -60,6 +63,7 @@ export function useDashboardSettings() {
   const resetSettings = useCallback(() => {
     updatePreferences({
       dashboard_recent_bins_count: DEFAULT_PREFERENCES.dashboard_recent_bins_count,
+      dashboard_show_checklist: DEFAULT_PREFERENCES.dashboard_show_checklist,
       dashboard_show_stats: DEFAULT_PREFERENCES.dashboard_show_stats,
       dashboard_show_needs_organizing: DEFAULT_PREFERENCES.dashboard_show_needs_organizing,
       dashboard_show_saved_views: DEFAULT_PREFERENCES.dashboard_show_saved_views,

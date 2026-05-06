@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   Bookmark,
+  CheckSquare,
   Clock,
   Hash,
   type LucideIcon,
@@ -19,6 +20,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { DASHBOARD_LIMITS, type DashboardSettings } from '@/lib/dashboardSettings';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { usePopover } from '@/lib/usePopover';
+import { useUserPreferences } from '@/lib/userPreferences';
 import { cn, focusRing, sectionHeader } from '@/lib/utils';
 
 interface DashboardSettingsMenuProps {
@@ -89,6 +91,7 @@ const SECTION_TILES: SectionTile[] = [
 export function DashboardSettingsMenu({ settings, onUpdate, onReset, terminology }: DashboardSettingsMenuProps) {
   const { visible, animating, close, toggle } = usePopover();
   const menuRef = useRef<HTMLDivElement>(null);
+  const { preferences } = useUserPreferences();
 
   useClickOutside(menuRef, close);
 
@@ -126,6 +129,14 @@ export function DashboardSettingsMenu({ settings, onUpdate, onReset, terminology
                 />
               );
             })}
+            {preferences.checklist_eligible && (
+              <TileButton
+                tile={{ key: 'showChecklist', label: 'Onboarding checklist', icon: CheckSquare }}
+                label="Onboarding checklist"
+                checked={settings.showChecklist}
+                onToggle={() => onUpdate({ showChecklist: !settings.showChecklist })}
+              />
+            )}
           </div>
 
           <div className="my-2 border-t border-[var(--border-subtle)]" />

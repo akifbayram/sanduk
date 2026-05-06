@@ -17,6 +17,7 @@ import { buildViewSearchParams } from '@/features/bins/useBinSearchParams';
 import { useAllTags } from '@/features/bins/useBins';
 import { useBulkActions } from '@/features/bins/useBulkActions';
 import { useBulkDialogs } from '@/features/bins/useBulkDialogs';
+import { DashboardChecklist } from '@/features/checklist/DashboardChecklist';
 import { useScanDialog } from '@/features/qrcode/ScanDialogContext';
 import { TourLauncher } from '@/features/tour/TourLauncher';
 import { getCommandInputRef } from '@/features/tour/TourProvider';
@@ -29,6 +30,7 @@ import { useTerminology } from '@/lib/terminology';
 import { useDebounce } from '@/lib/useDebounce';
 import { usePermissions } from '@/lib/usePermissions';
 import { usePlan } from '@/lib/usePlan';
+import { useUserPreferences } from '@/lib/userPreferences';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { DashboardActivityFeed } from './DashboardActivityFeed';
 import { DashboardDialogs } from './DashboardDialogs';
@@ -62,6 +64,7 @@ export function DashboardPage() {
   const { createOpen, setCreateOpen, createInitialPhotos, createInitialGroups, onCreateInitialPhotosConsumed } =
     useBinCreateFromCapture();
 
+  const { preferences } = useUserPreferences();
   const { isAdmin, canWrite, canCreateBin } = usePermissions();
   const allTags = useAllTags();
   const bulk = useBulkDialogs();
@@ -176,6 +179,14 @@ export function DashboardPage() {
         isLoading={isLoading}
         skeleton={<DashboardSkeleton settings={dashSettings} />}
       >
+        {dashSettings.showChecklist && (
+          <DashboardChecklist
+            totalBins={totalBins}
+            setCreateOpen={setCreateOpen}
+            onUpgradeClick={() => setUpgradeOpen(true)}
+          />
+        )}
+
         {dashSettings.showNeedsOrganizing && needsOrganizing > 0 && (
           <button
             type="button"
@@ -358,6 +369,15 @@ export function DashboardPage() {
                   />
                 </div>
               ))}
+              {preferences.checklist_eligible && (
+                <div className="flex items-center justify-between py-2 px-3 rounded-[var(--radius-md)]">
+                  <span className="text-[14px] text-[var(--text-primary)]">Onboarding checklist</span>
+                  <Switch
+                    checked={dashSettings.showChecklist}
+                    onCheckedChange={(checked) => updateDashSettings({ showChecklist: checked })}
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}
