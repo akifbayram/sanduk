@@ -1,4 +1,3 @@
-import { buildSearchProbes } from './inventoryMatch.js';
 import {
   type CandidateBin,
   findCheckedOutMatches,
@@ -21,6 +20,7 @@ export interface HydratedMatch {
   is_trashed?: boolean;
   icon: string;
   color: string;
+  total_item_count: number;
 }
 
 /** Public projection of CandidateBin used for "did you mean?" suggestions. */
@@ -51,6 +51,7 @@ function hydrate(c: CandidateBin, relevance: string): HydratedMatch {
     ...(c.is_trashed ? { is_trashed: true } : {}),
     icon: c.icon,
     color: c.color,
+    total_item_count: c.items.length,
   };
 }
 
@@ -63,32 +64,6 @@ function projectNearMiss(c: CandidateBin): NearMiss {
     icon: c.icon,
     color: c.color,
   };
-}
-
-function applyFieldFilter(candidates: CandidateBin[], fields: Array<'name' | 'tag' | 'item'>, terms: string[]): CandidateBin[] {
-  if (fields.length === 0) return candidates;
-  const probes = buildSearchProbes(terms);
-  if (probes.length === 0) return candidates;
-  const wantsName = fields.includes('name');
-  const wantsTag = fields.includes('tag');
-  const wantsItem = fields.includes('item');
-  return candidates.filter((c) => {
-    const nameLower = c.name.toLowerCase();
-    const tagLowers = c.tags.map((t) => t.toLowerCase());
-    const itemLowers = c.items.map((i) => i.name.toLowerCase());
-    for (const probe of probes) {
-      if (wantsName && nameLower.includes(probe)) return true;
-      if (wantsTag && tagLowers.some((t) => t.includes(probe))) return true;
-      if (wantsItem && itemLowers.some((n) => n.includes(probe))) return true;
-    }
-    return false;
-  });
-}
-
-function filterByScope<T extends { bin_id: string }>(rows: T[], scopedBinIds: string[] | undefined): T[] {
-  if (!scopedBinIds || scopedBinIds.length === 0) return rows;
-  const allowed = new Set(scopedBinIds);
-  return rows.filter((r) => allowed.has(r.bin_id));
 }
 
 async function gatherNearMisses(
@@ -115,11 +90,10 @@ async function executeContent(
   userId: string,
   scopedBinIds: string[] | undefined,
 ): Promise<ExecutedPlan> {
-  let candidates = await findLiteralMatches(locationId, userId, plan.terms);
-  if (plan.fields && plan.fields.length > 0) {
-    candidates = applyFieldFilter(candidates, plan.fields, plan.terms);
-  }
-  candidates = filterByScope(candidates, scopedBinIds);
+  const candidates = await findLiteralMatches(locationId, userId, plan.terms, {
+    scopedBinIds,
+    fields: plan.fields,
+  });
 
   if (candidates.length > 0) {
     return {
@@ -130,7 +104,10 @@ async function executeContent(
   }
 
   // No matches — try fuzzy bin-name "did you mean?" suggestions.
-  const fuzzy = filterByScope(await gatherNearMisses(locationId, userId, plan.terms), scopedBinIds).slice(0, 3);
+  const allFuzzy = await gatherNearMisses(locationId, userId, plan.terms);
+  const fuzzy = scopedBinIds && scopedBinIds.length > 0
+    ? allFuzzy.filter((m) => scopedBinIds.includes(m.bin_id)).slice(0, 3)
+    : allFuzzy.slice(0, 3);
   const answer = fuzzy.length > 0
     ? `I couldn't find any bins matching that. Did you mean ${fuzzy.map((m) => m.name).join(', ')}?`
     : "I couldn't find any bins matching that.";
@@ -140,7 +117,7 @@ async function executeContent(
 
 const METADATA_MATCHERS: Record<
   'pinned' | 'private' | 'checked_out' | 'trashed',
-  (locationId: string, userId: string) => Promise<CandidateBin[]>
+  (locationId: string, userId: string, opts: { scopedBinIds?: string[] }) => Promise<CandidateBin[]>
 > = {
   pinned: findPinnedMatches,
   private: findPrivateMatches,
@@ -154,10 +131,7 @@ async function executeMetadata(
   userId: string,
   scopedBinIds: string[] | undefined,
 ): Promise<ExecutedPlan> {
-  const candidates = filterByScope(
-    await METADATA_MATCHERS[plan.metadata](locationId, userId),
-    scopedBinIds,
-  );
+  const candidates = await METADATA_MATCHERS[plan.metadata](locationId, userId, { scopedBinIds });
   return {
     matches: candidates.map((c) => hydrate(c, c.match_hint)),
     near_misses: [],

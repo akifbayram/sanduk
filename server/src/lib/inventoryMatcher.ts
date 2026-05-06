@@ -1,6 +1,10 @@
 import { d, query } from '../db.js';
 import { buildSearchProbes, normalizeForCompare } from './inventoryMatch.js';
 
+function sqlNormalizeName(col: string): string {
+  return `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(${col}, '-', ' '), '''', ' '), '/', ' '), '&', ' '), '#', ' '), '.', ' '), ',', ' '), ':', ' '))`;
+}
+
 export interface CandidateBin {
   bin_id: string;
   bin_code: string;
@@ -89,13 +93,33 @@ function rowToCandidate(r: RawRow, hint: string): CandidateBin {
   };
 }
 
+function buildScopeClause(params: unknown[], scopedBinIds: string[] | undefined): string {
+  if (!scopedBinIds || scopedBinIds.length === 0) return '';
+  const placeholders = scopedBinIds.map((id) => {
+    params.push(id);
+    return `$${params.length}`;
+  });
+  return `AND b.id IN (${placeholders.join(', ')})`;
+}
+
+export interface LiteralMatchOpts {
+  scopedBinIds?: string[];
+  fields?: string[];
+}
+
 export async function findLiteralMatches(
   locationId: string,
   userId: string,
   terms: string[],
+  opts: LiteralMatchOpts = {},
 ): Promise<CandidateBin[]> {
   const probes = buildSearchProbes(terms);
   if (probes.length === 0) return [];
+
+  const { scopedBinIds, fields } = opts;
+  const wantsName = !fields || fields.length === 0 || fields.includes('name');
+  const wantsTag = !fields || fields.length === 0 || fields.includes('tag');
+  const wantsItem = !fields || fields.length === 0 || fields.includes('item');
 
   const params: unknown[] = [locationId, userId];
   const orClauses: string[] = [];
@@ -104,12 +128,25 @@ export async function findLiteralMatches(
     const like = `%${probe.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
     const idx = params.length + 1;
     params.push(like);
-    orClauses.push(
-      `LOWER(b.name) LIKE $${idx} ESCAPE '\\' ` +
-      `OR EXISTS (SELECT 1 FROM ${d.jsonEachFrom('b.tags', 'te')} WHERE LOWER(te.value) LIKE $${idx} ESCAPE '\\') ` +
-      `OR EXISTS (SELECT 1 FROM bin_items bi WHERE bi.bin_id = b.id AND bi.deleted_at IS NULL AND LOWER(bi.name) LIKE $${idx} ESCAPE '\\')`,
-    );
+
+    const fieldClauses: string[] = [];
+    if (wantsName) {
+      fieldClauses.push(`${sqlNormalizeName('b.name')} LIKE $${idx} ESCAPE '\\'`);
+    }
+    if (wantsTag) {
+      fieldClauses.push(`EXISTS (SELECT 1 FROM ${d.jsonEachFrom('b.tags', 'te')} WHERE ${sqlNormalizeName('te.value')} LIKE $${idx} ESCAPE '\\')`);
+    }
+    if (wantsItem) {
+      fieldClauses.push(`EXISTS (SELECT 1 FROM bin_items bi WHERE bi.bin_id = b.id AND bi.deleted_at IS NULL AND ${sqlNormalizeName('bi.name')} LIKE $${idx} ESCAPE '\\')`);
+    }
+    if (fieldClauses.length > 0) {
+      orClauses.push(`(${fieldClauses.join(' OR ')})`);
+    }
   }
+
+  if (orClauses.length === 0) return [];
+
+  const scopeClause = buildScopeClause(params, scopedBinIds);
 
   const sql = `
     SELECT ${candidateSelect()}
@@ -117,6 +154,7 @@ export async function findLiteralMatches(
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
       AND ${VISIBILITY_FILTER}
+      ${scopeClause}
       AND (${orClauses.join(' OR ')})
     ORDER BY b.updated_at DESC
     LIMIT ${MAX_CANDIDATES}
@@ -144,7 +182,13 @@ function describeMatchHint(c: CandidateBin, stems: string[]): string {
   return 'matches query';
 }
 
-export async function findPinnedMatches(locationId: string, userId: string): Promise<CandidateBin[]> {
+export interface ScopeOpts {
+  scopedBinIds?: string[];
+}
+
+export async function findPinnedMatches(locationId: string, userId: string, opts: ScopeOpts = {}): Promise<CandidateBin[]> {
+  const params: unknown[] = [locationId, userId];
+  const scopeClause = buildScopeClause(params, opts.scopedBinIds);
   // Reuses the `pb` LEFT JOIN already in CANDIDATE_FROM — filter on it
   // instead of joining the same table again.
   const sql = `
@@ -153,15 +197,18 @@ export async function findPinnedMatches(locationId: string, userId: string): Pro
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
       AND ${VISIBILITY_FILTER}
+      ${scopeClause}
       AND pb.user_id IS NOT NULL
     ORDER BY pb.position
     LIMIT ${MAX_CANDIDATES}
   `;
-  const result = await query<RawRow>(sql, [locationId, userId]);
+  const result = await query<RawRow>(sql, params);
   return result.rows.map((r) => rowToCandidate(r, 'pinned'));
 }
 
-export async function findPrivateMatches(locationId: string, userId: string): Promise<CandidateBin[]> {
+export async function findPrivateMatches(locationId: string, userId: string, opts: ScopeOpts = {}): Promise<CandidateBin[]> {
+  const params: unknown[] = [locationId, userId];
+  const scopeClause = buildScopeClause(params, opts.scopedBinIds);
   const sql = `
     SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
@@ -169,20 +216,24 @@ export async function findPrivateMatches(locationId: string, userId: string): Pr
       AND b.deleted_at IS NULL
       AND b.visibility = 'private'
       AND b.created_by = $2
+      ${scopeClause}
     ORDER BY b.updated_at DESC
     LIMIT ${MAX_CANDIDATES}
   `;
-  const result = await query<RawRow>(sql, [locationId, userId]);
+  const result = await query<RawRow>(sql, params);
   return result.rows.map((r) => rowToCandidate(r, 'private'));
 }
 
-export async function findCheckedOutMatches(locationId: string, userId: string): Promise<CandidateBin[]> {
+export async function findCheckedOutMatches(locationId: string, userId: string, opts: ScopeOpts = {}): Promise<CandidateBin[]> {
+  const params: unknown[] = [locationId, userId];
+  const scopeClause = buildScopeClause(params, opts.scopedBinIds);
   const sql = `
     SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
       AND ${VISIBILITY_FILTER}
+      ${scopeClause}
       AND EXISTS (
         SELECT 1 FROM item_checkouts ic
         WHERE ic.origin_bin_id = b.id AND ic.returned_at IS NULL
@@ -190,21 +241,24 @@ export async function findCheckedOutMatches(locationId: string, userId: string):
     ORDER BY b.updated_at DESC
     LIMIT ${MAX_CANDIDATES}
   `;
-  const result = await query<RawRow>(sql, [locationId, userId]);
+  const result = await query<RawRow>(sql, params);
   return result.rows.map((r) => rowToCandidate(r, 'has checked-out items'));
 }
 
-export async function findTrashedMatches(locationId: string, userId: string): Promise<CandidateBin[]> {
+export async function findTrashedMatches(locationId: string, userId: string, opts: ScopeOpts = {}): Promise<CandidateBin[]> {
+  const params: unknown[] = [locationId, userId];
+  const scopeClause = buildScopeClause(params, opts.scopedBinIds);
   const sql = `
     SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NOT NULL
       AND ${VISIBILITY_FILTER}
+      ${scopeClause}
     ORDER BY b.deleted_at DESC
     LIMIT ${MAX_CANDIDATES}
   `;
-  const result = await query<RawRow>(sql, [locationId, userId]);
+  const result = await query<RawRow>(sql, params);
   return result.rows.map((r) => rowToCandidate(r, 'in trash'));
 }
 

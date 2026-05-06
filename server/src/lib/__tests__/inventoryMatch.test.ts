@@ -41,6 +41,15 @@ describe('simplePluralStem', () => {
     expect(simplePluralStem('places')).toBe('place');
     expect(simplePluralStem('dices')).toBe('dice');
   });
+  it('short -ies words (4 chars) fall through to plain-s strip, not ies→y', () => {
+    expect(simplePluralStem('ties')).toBe('tie');
+    expect(simplePluralStem('lies')).toBe('lie');
+    expect(simplePluralStem('pies')).toBe('pie');
+  });
+  it('longer -ies words still stem correctly', () => {
+    expect(simplePluralStem('cherries')).toBe('cherry');
+    expect(simplePluralStem('batteries')).toBe('battery');
+  });
 });
 
 describe('normalizeForCompare', () => {
