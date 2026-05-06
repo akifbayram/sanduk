@@ -180,3 +180,4 @@ export async function enrichQueryMatches(
   );
   return results.filter((r): r is QueryMatch => r !== null);
 }
+

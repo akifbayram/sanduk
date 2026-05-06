@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { buildCommandContext, buildInventoryContext } from '../../lib/aiContext.js';
+import { buildCommandContext, buildInventoryContext, buildPlannerSchemaContext } from '../../lib/aiContext.js';
 import { buildCorrectionPrompt } from '../../lib/aiProviders.js';
 import { sanitizePreviousResult, validatePreviousResult } from '../../lib/aiRequestHelpers.js';
 import { aiRouteHandler, validateTextInput } from '../../lib/aiRouteHandler.js';
@@ -15,6 +15,8 @@ import { parseHistoryFromBody } from '../../lib/conversationHistory.js';
 import { ForbiddenError } from '../../lib/httpErrors.js';
 import { classifyIntent } from '../../lib/intentClassifier.js';
 import { buildSystemPrompt as buildQuerySysPrompt, buildUserMessage as buildQueryUserMsg } from '../../lib/inventoryQuery.js';
+import { buildPlannerSystemPrompt, buildPlannerUserMessage, normalizePlanAliases, QueryPlanSchema, validateQueryPlan } from '../../lib/queryPlan.js';
+import { executeQueryPlan } from '../../lib/queryPlanExecutor.js';
 import { aiRateLimiters } from '../../lib/rateLimiters.js';
 import { buildPrompt as buildStructurePrompt, STRUCTURE_TEXT_TOKENS } from '../../lib/structureText.js';
 import { requireLocationMemberOrAbove } from '../../middleware/locationAccess.js';
@@ -23,11 +25,53 @@ import { assertBinsFound, makeCommandEnrichResult, makeQueryEnrichResult, sendMo
 
 const router = Router();
 
+interface StreamPlannedQueryArgs {
+  question: string;
+  locationId: string;
+  scopedBinIds?: string[];
+  scopeNote?: string;
+  priorMessages: import('ai').ModelMessage[];
+}
+
+async function streamPlannedQuery(
+  res: import('express').Response,
+  req: import('express').Request,
+  args: StreamPlannedQueryArgs,
+): Promise<void> {
+  const { question, locationId, scopedBinIds, scopeNote = '', priorMessages } = args;
+  const [{ settings, model }, schemaCtx] = await Promise.all([
+    resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
+    buildPlannerSchemaContext(locationId),
+  ]);
+
+  await pipeAiStreamToResponse(res, model, {
+    schema: QueryPlanSchema,
+    system: buildPlannerSystemPrompt(settings.query_prompt ?? undefined, isDemoUser(req)),
+    userContent: buildPlannerUserMessage(`${scopeNote}${question}`, schemaCtx),
+    priorMessages,
+    ...streamOpts(settings, req, { maxTokens: 800, temperature: 0.2 }),
+    enrichResult: async (parsed) => {
+      const safe = QueryPlanSchema.safeParse(normalizePlanAliases(parsed));
+      if (!safe.success) {
+        return { answer: "I couldn't understand that. Try rephrasing your question.", matches: [] };
+      }
+      const executed = await executeQueryPlan(validateQueryPlan(safe.data), locationId, req.user!.id, scopedBinIds);
+      return { answer: executed.answer, matches: executed.matches };
+    },
+  });
+}
+
 // POST /api/ai/query/stream
 router.post('/query/stream', ...aiRateLimiters, requireAiAccess(), checkAiCredits(), requireLocationMemberOrAbove(), aiRouteHandler('stream query', async (req, res) => {
   const question = validateTextInput(req.body.question, 'question');
   const { locationId } = req.body;
   const priorMessages = parseHistoryFromBody(req.body);
+
+  if (config.aiDeterministicMatch) {
+    await streamPlannedQuery(res, req, { question, locationId, priorMessages });
+    return;
+  }
+
   const [{ settings, model }, context] = await Promise.all([
     resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
     buildInventoryContext(locationId, req.user!.id, undefined, question),
@@ -77,9 +121,31 @@ router.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCredits(
   const scopeNote = isScoped
     ? '\nSELECTION SCOPE: The user selected specific bins. The inventory context below contains ONLY these bins. Apply actions or answer based only on the bins provided.\n'
     : '';
-  const intent = classifyIntent(text);
+  let intent = classifyIntent(text);
+
+  // When the deterministic planner is enabled, prefer routing ambiguous bare-noun
+  // and conversational follow-up messages to the planner. The planner can decide
+  // (via refusal kind) when it cannot help, which is more useful than the legacy
+  // command path attempting to interpret a search intent as an action. This
+  // covers cases like "tools" (single noun), "yes" (confirmation after a near-miss),
+  // and "the red ones" (pronoun reference).
+  if (intent === 'ambiguous' && config.aiDeterministicMatch) {
+    const trimmed = text.trim();
+    const hasCommandVerb = /\b(add|remove|delete|move|create|update|put|take|pin|unpin|set|change|rename|tag|untag|clear|make|mark|assign|merge|split|restore)\b/i.test(trimmed);
+    const wordCount = trimmed.split(/\s+/).length;
+    const isConfirmation = priorMessages.length > 0 && /^(yes|yeah|yep|sure|ok(ay)?|the\s+(first|second|third|last|one|other)|that\s+one|those)\b/i.test(trimmed);
+    const isShortNoun = wordCount <= 4 && !hasCommandVerb;
+    if (isConfirmation || isShortNoun) {
+      intent = 'query';
+    }
+  }
 
   if (intent === 'query') {
+    if (config.aiDeterministicMatch) {
+      await streamPlannedQuery(res, req, { question: text, locationId, scopedBinIds: binIds, scopeNote, priorMessages });
+      return;
+    }
+
     const [{ settings, model }, queryContext] = await Promise.all([
       resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
       buildInventoryContext(locationId, req.user!.id, binIds, text),

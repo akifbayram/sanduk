@@ -288,3 +288,29 @@ export async function buildInventoryContext(locationId: string, userId: string, 
   const budgeted = applyContextLimits(allBins, userText, !!binIds?.length);
   return { ...budgeted, areas, trash_bins };
 }
+
+/**
+ * Lightweight context for the query planner — distinct tag values and
+ * area names in the location. Does NOT load bins (the planner doesn't
+ * need them; it emits a search plan that the matcher executes).
+ */
+export async function buildPlannerSchemaContext(locationId: string): Promise<{ tags: string[]; areas: string[] }> {
+  const [tagsResult, areasResult] = await Promise.all([
+    query<{ value: string }>(
+      `SELECT DISTINCT te.value AS value
+       FROM bins b, ${d.jsonEachFrom('b.tags', 'te')}
+       WHERE b.location_id = $1 AND b.deleted_at IS NULL
+       ORDER BY te.value
+       LIMIT 200`,
+      [locationId],
+    ),
+    query<{ name: string }>(
+      'SELECT name FROM areas WHERE location_id = $1 ORDER BY name LIMIT 100',
+      [locationId],
+    ),
+  ]);
+  return {
+    tags: tagsResult.rows.map((r) => r.value),
+    areas: areasResult.rows.map((r) => r.name),
+  };
+}
