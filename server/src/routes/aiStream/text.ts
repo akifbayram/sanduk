@@ -41,7 +41,7 @@ async function streamPlannedQuery(
   const { question, locationId, scopedBinIds, scopeNote = '', priorMessages } = args;
   const [{ settings, model }, schemaCtx] = await Promise.all([
     resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
-    buildPlannerSchemaContext(locationId),
+    buildPlannerSchemaContext(locationId, req.user!.id),
   ]);
 
   await pipeAiStreamToResponse(res, model, {

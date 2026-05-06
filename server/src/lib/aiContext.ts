@@ -294,15 +294,16 @@ export async function buildInventoryContext(locationId: string, userId: string, 
  * area names in the location. Does NOT load bins (the planner doesn't
  * need them; it emits a search plan that the matcher executes).
  */
-export async function buildPlannerSchemaContext(locationId: string): Promise<{ tags: string[]; areas: string[] }> {
+export async function buildPlannerSchemaContext(locationId: string, userId: string): Promise<{ tags: string[]; areas: string[] }> {
   const [tagsResult, areasResult] = await Promise.all([
     query<{ value: string }>(
       `SELECT DISTINCT te.value AS value
        FROM bins b, ${d.jsonEachFrom('b.tags', 'te')}
        WHERE b.location_id = $1 AND b.deleted_at IS NULL
+         AND (b.visibility = 'location' OR b.created_by = $2)
        ORDER BY te.value
        LIMIT 200`,
-      [locationId],
+      [locationId, userId],
     ),
     query<{ name: string }>(
       'SELECT name FROM areas WHERE location_id = $1 ORDER BY name LIMIT 100',

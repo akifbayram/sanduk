@@ -127,8 +127,8 @@ export function buildPlannerSystemPrompt(customPrompt?: string, isDemoUser?: boo
 
 export function buildPlannerUserMessage(question: string, schema: PlannerSchemaContext): string {
   const compact = {
-    tags: schema.tags.slice(0, 200),
-    areas: schema.areas.slice(0, 100),
+    tags: schema.tags.slice(0, 200).map(sanitizeForPrompt),
+    areas: schema.areas.slice(0, 100).map(sanitizeForPrompt),
   };
   return `Question: ${sanitizeForPrompt(question)}
 
