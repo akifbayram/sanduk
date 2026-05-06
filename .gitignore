@@ -15,6 +15,7 @@ docker-compose.cloud.yml
 .claude/
 reports/
 docs/
+backup_temp/
 superpowers/
 .impeccable.md
 .interface-design

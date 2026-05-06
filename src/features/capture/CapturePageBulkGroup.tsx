@@ -1,105 +1,21 @@
-import { Camera, Check, Images, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Check, Images, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { TourLauncher } from '@/features/tour/TourLauncher';
-import { cn, focusRing } from '@/lib/utils';
+import { cn, focusRing, pluralize } from '@/lib/utils';
+import { CameraStartScreen } from './CameraStartScreen';
 import { setCapturedPhotos, setCapturedReturnTarget } from './capturedPhotos';
 import { FirstRunCoachmark, HelpButton } from './guidance/CameraGuidance';
+import { ShutterButton } from './ShutterButton';
+import { ThumbnailItem } from './ThumbnailItem';
 import { useCaptureGrouping } from './useCaptureGrouping';
-
-const LONG_PRESS_MS = 500;
+import { Viewfinder } from './Viewfinder';
 
 function viewfinderHint(currentGroup: number, photosInCurrentGroup: number): string {
   if (currentGroup === 0 && photosInCurrentGroup === 0) return 'tap shutter to capture';
   if (currentGroup === 0 && photosInCurrentGroup > 0) return 'keep shooting — same bin';
   if (currentGroup > 0 && photosInCurrentGroup === 0) return 'new bin — aim & shoot';
   return 'Done when finished';
-}
-
-function ThumbnailItem({
-  photo,
-  groupIdx,
-  photoIdx,
-  onRemove,
-}: {
-  photo: { id: string; thumbnailUrl: string };
-  groupIdx: number;
-  photoIdx: number;
-  onRemove: (id: string) => void;
-}) {
-  const [showRemove, setShowRemove] = useState(false);
-  const timerRef = useRef<number | null>(null);
-  const liRef = useRef<HTMLLIElement>(null);
-
-  function start() {
-    timerRef.current = window.setTimeout(() => setShowRemove(true), LONG_PRESS_MS);
-  }
-  function cancel() {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }
-
-  // Dismiss the remove overlay when the user taps outside this thumbnail.
-  useEffect(() => {
-    if (!showRemove) return;
-    function handlePointerDown(e: PointerEvent) {
-      if (liRef.current && !liRef.current.contains(e.target as Node)) {
-        setShowRemove(false);
-      }
-    }
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [showRemove]);
-
-  // Clear any pending long-press timer if the component unmounts mid-press.
-  useEffect(() => {
-    return () => {
-      if (timerRef.current !== null) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
-
-  return (
-    <li
-      ref={liRef}
-      aria-label={`Bin ${groupIdx + 1}, photo ${photoIdx + 1}`}
-      className="h-11 w-11 flex-shrink-0 relative"
-      onPointerDown={start}
-      onPointerUp={cancel}
-      onPointerLeave={cancel}
-      onPointerCancel={cancel}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        setShowRemove(true);
-      }}
-    >
-      <img
-        src={photo.thumbnailUrl}
-        alt=""
-        className="h-full w-full rounded-[var(--radius-sm)] object-cover"
-      />
-      {showRemove && (
-        <button
-          type="button"
-          onClick={() => {
-            setShowRemove(false);
-            onRemove(photo.id);
-          }}
-          aria-label="Remove photo"
-          className={cn(
-            focusRing,
-            'absolute inset-0 flex items-center justify-center bg-black/60 rounded-[var(--radius-sm)] focus-visible:ring-offset-2 focus-visible:ring-offset-black',
-          )}
-        >
-          <X className="h-4 w-4 text-white" />
-        </button>
-      )}
-    </li>
-  );
 }
 
 export function CapturePageBulkGroup() {
@@ -125,7 +41,7 @@ export function CapturePageBulkGroup() {
 
   function handleClose() {
     if (photos.length > 0) {
-      const ok = window.confirm(`Discard ${photos.length} photo${photos.length === 1 ? '' : 's'}?`);
+      const ok = window.confirm(`Discard ${pluralize(photos.length, 'photo')}?`);
       if (!ok) return;
     }
     navigate(-1);
@@ -155,12 +71,9 @@ export function CapturePageBulkGroup() {
     navigate(-1);
   }
 
-  const photoLabel = photosInCurrentGroup === 1 ? 'photo' : 'photos';
-  const hasCamera = !!navigator.mediaDevices?.getUserMedia;
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      {/* Video element — always rendered so ref is available when startCamera fires */}
+      {/* Always rendered so videoRef is available when startCamera fires */}
       <video
         ref={videoRef}
         playsInline
@@ -169,51 +82,12 @@ export function CapturePageBulkGroup() {
       />
 
       {!isStreaming && (
-        <div className="absolute inset-0 z-20 flex flex-col bg-[var(--bg-base)] items-center justify-center gap-5 px-6">
-          {!hasCamera ? (
-            <>
-              <Camera className="h-16 w-16 text-[var(--text-tertiary)]" />
-              <h2 className="text-[17px] font-semibold text-[var(--text-primary)] text-center">
-                Camera not available
-              </h2>
-              <p className="text-[14px] text-[var(--text-secondary)] text-center max-w-sm">
-                Your browser does not support camera access. Make sure you are using HTTPS.
-              </p>
-              <Button variant="outline" onClick={() => navigate(-1)}>
-                Go Back
-              </Button>
-            </>
-          ) : error ? (
-            <>
-              <Camera className="h-16 w-16 text-[var(--destructive)] opacity-60" />
-              <p className="text-[15px] text-[var(--text-primary)] text-center max-w-sm font-medium">
-                {error}
-              </p>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => navigate(-1)}>
-                  Go Back
-                </Button>
-                <Button onClick={() => startCamera()}>Try Again</Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <Camera className="h-16 w-16 text-[var(--accent)] opacity-80" />
-              <h2 className="text-[17px] font-semibold text-[var(--text-primary)]">
-                Ready to capture
-              </h2>
-              <p className="text-[14px] text-[var(--text-secondary)] text-center max-w-sm">
-                Tap the button below to start the camera and take photos.
-              </p>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => navigate(-1)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => startCamera()}>Start Camera</Button>
-              </div>
-            </>
-          )}
-        </div>
+        <CameraStartScreen
+          hasCamera={!!navigator.mediaDevices?.getUserMedia}
+          error={error}
+          onStart={() => startCamera()}
+          onCancel={() => navigate(-1)}
+        />
       )}
 
       <FirstRunCoachmark isStreaming={isStreaming} />
@@ -241,7 +115,7 @@ export function CapturePageBulkGroup() {
               aria-live="polite"
               className="text-[11px] font-medium text-white/90 tracking-wide"
             >
-              Bin #{currentGroup + 1} · {photosInCurrentGroup} {photoLabel}
+              Bin #{currentGroup + 1} · {pluralize(photosInCurrentGroup, 'photo')}
             </div>
 
             <div className="flex items-center gap-2">
@@ -270,18 +144,8 @@ export function CapturePageBulkGroup() {
             />
           </div>
 
-          {/* Viewfinder */}
-          <div className="flex-1 relative flex items-center justify-center">
-            <div className="absolute inset-4 border border-dashed border-white/40 pointer-events-none">
-              <div className="absolute -top-px -left-px h-4 w-4 border-t-2 border-l-2 border-[var(--accent)]" />
-              <div className="absolute -top-px -right-px h-4 w-4 border-t-2 border-r-2 border-[var(--accent)]" />
-              <div className="absolute -bottom-px -left-px h-4 w-4 border-b-2 border-l-2 border-[var(--accent)]" />
-              <div className="absolute -bottom-px -right-px h-4 w-4 border-b-2 border-r-2 border-[var(--accent)]" />
-            </div>
-            <p className="relative text-[13px] text-white/55 font-medium text-center px-6">
-              {viewfinderHint(currentGroup, photosInCurrentGroup)}
-            </p>
-          </div>
+          <Viewfinder hint={viewfinderHint(currentGroup, photosInCurrentGroup)} />
+
           {/* Photo strip */}
           <div
             className="relative z-10 bg-black/50 overflow-x-auto overflow-y-hidden"
@@ -341,23 +205,10 @@ export function CapturePageBulkGroup() {
               Done
             </button>
 
-            <button
-              type="button"
+            <ShutterButton
               onClick={capture}
-              aria-label="Take photo"
-              className={cn(
-                focusRing,
-                'h-[54px] w-[54px] rounded-[50%] border-[3px] border-white flex items-center justify-center active:scale-95 transition-transform relative focus-visible:ring-offset-2 focus-visible:ring-offset-black',
-              )}
-            >
-              <div className="h-[42px] w-[42px] rounded-[50%] bg-white" />
-              {photosInCurrentGroup === 0 && (
-                <div
-                  aria-hidden="true"
-                  className="absolute -inset-1 rounded-[50%] ring-[3px] ring-[var(--accent)]"
-                />
-              )}
-            </button>
+              showAccentRing={photosInCurrentGroup === 0}
+            />
 
             <button
               type="button"

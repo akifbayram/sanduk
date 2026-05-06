@@ -1,6 +1,8 @@
+import { enrichActionsWithNames } from './commandActionUtils';
 import type { ExecutionResult } from './useActionExecutor';
 import type { CommandAction } from './useCommand';
 import type { QueryResult } from './useInventoryQuery';
+import type { AskClassified } from './useStreamingAsk';
 
 /** Per-turn UI state for the conversation thread. */
 export type Turn =
@@ -82,4 +84,44 @@ export function buildHistoryPayload(turns: Turn[]): ConversationTurnPayload[] {
     // ai-thinking, ai-error turns are skipped
   }
   return payload;
+}
+
+/** Replace the turn with the matching id; if no match, returns the array unchanged. */
+export function replaceTurn(turns: Turn[], id: string, replacement: Turn): Turn[] {
+  return turns.map((t) => (t.id === id ? replacement : t));
+}
+
+/** Remove the most recent ai-thinking turn (used by cancelStreaming). */
+export function removeLastThinkingTurn(turns: Turn[]): Turn[] {
+  for (let i = turns.length - 1; i >= 0; i--) {
+    if (turns[i].kind === 'ai-thinking') {
+      return [...turns.slice(0, i), ...turns.slice(i + 1)];
+    }
+  }
+  return turns;
+}
+
+/** Convert a classified AI response into the corresponding Turn shape. */
+export function askClassifiedToTurn(
+  id: string,
+  c: AskClassified,
+  binMap: Map<string, { name: string }>,
+): Turn {
+  if (c.kind === 'command') {
+    const actions = enrichActionsWithNames(c.actions, binMap);
+    const checkedActions = new Map<number, boolean>(actions.map((_, i) => [i, true] as const));
+    return {
+      kind: 'ai-command-preview',
+      id,
+      actions,
+      interpretation: c.interpretation,
+      checkedActions,
+      status: 'pending',
+    };
+  }
+  return {
+    kind: 'ai-query-result',
+    id,
+    queryResult: { answer: c.answer, matches: c.matches },
+  };
 }

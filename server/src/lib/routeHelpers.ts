@@ -15,3 +15,20 @@ export function logRouteActivity(req: Request, opts: RouteActivityOptions): void
     apiKeyId: req.apiKeyId,
   });
 }
+
+/**
+ * Log the standard pair of activity entries emitted by every import endpoint:
+ * a leading 'replace_import' marker (when applicable) plus the summary 'import'
+ * entry with imported-bin count.
+ */
+export function logImportActivity(
+  req: Request,
+  locationId: string,
+  mode: 'merge' | 'replace',
+  binsImported: number,
+): void {
+  if (mode === 'replace') {
+    logRouteActivity(req, { locationId, action: 'replace_import', entityType: 'location', entityId: locationId, entityName: 'replace: all existing data cleared' });
+  }
+  logRouteActivity(req, { locationId, action: 'import', entityType: 'location', entityId: locationId, entityName: `${mode}: ${binsImported} bins imported` });
+}

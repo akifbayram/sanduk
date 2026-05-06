@@ -25,7 +25,7 @@ vi.mock('../../lib/routeHelpers.js', () => ({
   logRouteActivity: (...args: unknown[]) => mockLogRouteActivity(...args),
 }));
 
-const { default: router } = await import('../tags.js');
+const { default: router } = await import('../tags/bulkApply.js');
 
 function findHandler(method: 'post', path: string) {
   const layer = (router as any).stack.find(

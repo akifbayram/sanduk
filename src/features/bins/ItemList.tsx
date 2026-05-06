@@ -1,6 +1,4 @@
-import { PackageMinus, Trash2, Undo2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActionMenu, MenuDivider, MenuItem } from '@/components/ui/action-menu';
 import { Label } from '@/components/ui/label';
 import { SearchInput } from '@/components/ui/search-input';
 import { type SortDirection, SortHeader } from '@/components/ui/sort-header';
@@ -8,10 +6,14 @@ import { useToast } from '@/components/ui/toast';
 import { checkoutItem, returnItem } from '@/features/checkouts/useCheckouts';
 import { addItemsToShoppingList, removeFromShoppingList } from '@/features/shopping-list/useShoppingList';
 import { Events, notify } from '@/lib/eventBus';
-import { parseBareQuantity } from '@/lib/itemQuantities';
-import { cn, relativeTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type { BinItem, ItemCheckout } from '@/types';
+import { ItemListCheckoutRow } from './ItemListCheckoutRow';
 import { ItemListPagination } from './ItemListPagination';
+import { ItemListReadOnlyRow } from './ItemListReadOnlyRow';
+import { ItemListRow } from './ItemListRow';
+import { ACTIONS_COL_WIDTH, QTY_COL_WIDTH } from './itemListLayout';
+import { type SortColumn, sortBinItems } from './itemListSort';
 import { removeItemFromBin, renameItem, reorderItems } from './useBins';
 import { useItemPageSize } from './useItemPageSize';
 import { useItemPagination } from './useItemPagination';
@@ -19,11 +21,6 @@ import { useItemPagination } from './useItemPagination';
 // Filter-search input appears once the bin has more than this many items.
 // The page-size preference itself lives in Settings → Preferences → Display.
 const FILTER_THRESHOLD = 15;
-
-// Width of the trailing qty column — kept in sync between header, ItemRow, and ReadOnlyRow.
-const QTY_COL_WIDTH = 'shrink-0 w-[52px]';
-
-const ACTIONS_COL_WIDTH = 'shrink-0 w-16';
 
 interface ItemListProps {
   items: BinItem[];
@@ -37,210 +34,6 @@ interface ItemListProps {
   /** Node rendered inside the card below items, separated by a subtle divider.
    *  When set, the card renders even if there are no items (so the slot stays visible). */
   footerSlot?: React.ReactNode;
-}
-
-type SortColumn = '' | 'name' | 'qty';
-
-function compareByName(a: BinItem, b: BinItem): number {
-  return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-}
-
-function sortBinItems(items: BinItem[], column: SortColumn, direction: SortDirection): BinItem[] {
-  if (column === 'name') {
-    return [...items].sort((a, b) => direction === 'asc' ? compareByName(a, b) : -compareByName(a, b));
-  }
-  if (column === 'qty') {
-    return [...items].sort((a, b) => {
-      const aNull = a.quantity == null;
-      const bNull = b.quantity == null;
-      if (aNull && bNull) return compareByName(a, b);
-      if (aNull) return 1;
-      if (bNull) return -1;
-      const qa = a.quantity as number;
-      const qb = b.quantity as number;
-      const diff = direction === 'desc' ? qb - qa : qa - qb;
-      return diff !== 0 ? diff : compareByName(a, b);
-    });
-  }
-  return items;
-}
-
-interface ItemRowActionMenuProps {
-  onCheckout?: () => void;
-  onReturn?: () => void;
-  onDelete: () => void;
-}
-
-function ItemRowActionMenu({ onCheckout, onReturn, onDelete }: ItemRowActionMenuProps) {
-  return (
-    <ActionMenu
-      triggerAriaLabel="Item actions"
-      triggerClassName="shrink-0 flex items-center justify-center size-11 text-[var(--text-tertiary)] transition-opacity opacity-30 lg:opacity-0 lg:group-hover:opacity-100 aria-expanded:opacity-100"
-      menuClassName="min-w-[160px]"
-    >
-      {onCheckout && <MenuItem icon={PackageMinus} label="Check out" onClick={onCheckout} />}
-      {onReturn && <MenuItem icon={Undo2} label="Return" onClick={onReturn} />}
-      {(onCheckout || onReturn) && <MenuDivider />}
-      <MenuItem icon={Trash2} label="Delete" onClick={onDelete} destructive />
-    </ActionMenu>
-  );
-}
-
-interface ItemRowProps {
-  text: string;
-  quantity: number | null;
-  saved?: boolean;
-  onCheckout?: () => void;
-  onSave: (value: string, quantity: number | null) => void;
-  onDelete: () => void;
-}
-
-function ItemRow({ text, quantity, saved, onCheckout, onSave, onDelete }: ItemRowProps) {
-  const [editValue, setEditValue] = useState(text);
-  const [qtyDraft, setQtyDraft] = useState(quantity != null ? String(quantity) : '');
-  // "committed" tracks the last reconciled value — used as the Escape-revert target,
-  // the save-diff baseline, and the sentinel for detecting prop changes from the server.
-  const committedNameRef = useRef(text);
-  const committedQtyRef = useRef(quantity);
-
-  if (text !== committedNameRef.current) {
-    committedNameRef.current = text;
-    setEditValue(text);
-  }
-  if (quantity !== committedQtyRef.current) {
-    committedQtyRef.current = quantity;
-    setQtyDraft(quantity != null ? String(quantity) : '');
-  }
-
-  const rowRef = useRef<HTMLDivElement>(null);
-
-  function handleSave() {
-    const trimmed = editValue.trim();
-    const parsed = parseBareQuantity(qtyDraft);
-    const finalQty = parsed != null && parsed >= 1
-      ? parsed
-      : (qtyDraft.trim() === '' ? null : committedQtyRef.current);
-    if (!trimmed) return;
-    if (trimmed === committedNameRef.current && finalQty === committedQtyRef.current) return;
-    committedNameRef.current = trimmed;
-    committedQtyRef.current = finalQty;
-    onSave(trimmed, finalQty);
-  }
-
-  return (
-    <div
-      ref={rowRef}
-      className={cn(
-        'group row-tight px-3.5 py-1 min-h-[44px] hover:bg-[var(--bg-hover)] transition-colors',
-        saved && 'animate-save-flash'
-      )}
-    >
-      <textarea
-        rows={1}
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            (e.target as HTMLElement).blur();
-          } else if (e.key === 'Escape') {
-            e.preventDefault();
-            setEditValue(committedNameRef.current);
-            (e.target as HTMLElement).blur();
-          }
-        }}
-        onBlur={() => {
-          requestAnimationFrame(() => {
-            if (!rowRef.current?.contains(document.activeElement)) handleSave();
-          });
-        }}
-        className="flex-1 min-w-0 bg-transparent text-[15px] text-[var(--text-primary)] leading-relaxed outline-none resize-none [field-sizing:content] min-h-[1.5em]"
-        aria-label="Item name"
-      />
-
-      <input
-        value={qtyDraft}
-        onChange={(e) => setQtyDraft(e.target.value.replace(/[^0-9]/g, ''))}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            (e.target as HTMLElement).blur();
-          } else if (e.key === 'Escape') {
-            e.preventDefault();
-            setQtyDraft(committedQtyRef.current != null ? String(committedQtyRef.current) : '');
-            (e.target as HTMLElement).blur();
-          }
-        }}
-        onBlur={() => {
-          requestAnimationFrame(() => {
-            if (!rowRef.current?.contains(document.activeElement)) handleSave();
-          });
-        }}
-        className={cn(
-          QTY_COL_WIDTH,
-          'bg-transparent text-right text-[15px] text-[var(--text-primary)] leading-relaxed outline-none tabular-nums'
-        )}
-        inputMode="numeric"
-        aria-label="Quantity"
-      />
-
-      <div className={cn(ACTIONS_COL_WIDTH, 'inline-flex items-center justify-end')}>
-        <ItemRowActionMenu onCheckout={onCheckout} onDelete={onDelete} />
-      </div>
-    </div>
-  );
-}
-
-interface CheckoutRowProps {
-  item: BinItem;
-  checkout: ItemCheckout;
-  onReturn?: () => void;
-  onDelete: () => void;
-}
-
-function CheckoutSubline({ item, checkout }: { item: BinItem; checkout: ItemCheckout }) {
-  return (
-    <span className="flex-1 min-w-0 text-[15px] leading-relaxed">
-      <span className="block text-[var(--text-tertiary)] line-through opacity-60">{item.name}</span>
-      <span className="block text-[12px] text-[var(--text-tertiary)] opacity-70 mt-0.5">
-        Out &middot; {checkout.checked_out_by_name} &middot; {relativeTime(checkout.checked_out_at)}
-      </span>
-    </span>
-  );
-}
-
-function CheckoutRow({ item, checkout, onReturn, onDelete }: CheckoutRowProps) {
-  return (
-    <div className="group row-tight px-3.5 py-1 min-h-[44px] hover:bg-[var(--bg-hover)] transition-colors">
-      <CheckoutSubline item={item} checkout={checkout} />
-      <div className={cn(ACTIONS_COL_WIDTH, 'inline-flex items-center justify-end')}>
-        <ItemRowActionMenu onReturn={onReturn} onDelete={onDelete} />
-      </div>
-    </div>
-  );
-}
-
-function ReadOnlyRow({ item }: { item: BinItem }) {
-  return (
-    <div className="row-tight px-3.5 py-1 min-h-[44px]">
-      <span className="flex-1 min-w-0 text-[15px] text-[var(--text-primary)] leading-relaxed">
-        {item.name}
-      </span>
-      {item.quantity != null && (
-        <span className={cn(QTY_COL_WIDTH, 'text-right text-[15px] text-[var(--text-primary)] leading-relaxed tabular-nums')}>
-          {item.quantity}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function ReadOnlyCheckoutRow({ item, checkout }: { item: BinItem; checkout: ItemCheckout }) {
-  return (
-    <div className="row-tight px-3.5 py-1 min-h-[44px]">
-      <CheckoutSubline item={item} checkout={checkout} />
-    </div>
-  );
 }
 
 export function ItemList({ items, binId, readOnly, hideWhenEmpty, hideHeader, checkouts = [], onItemsChange, headerExtra, footerSlot }: ItemListProps) {
@@ -524,7 +317,7 @@ export function ItemList({ items, binId, readOnly, hideWhenEmpty, hideHeader, ch
         <div className="row-spread mb-2 min-h-8">
           <Label>
             {headerCount}
-            {checkouts.length > 0 && ` \u00b7 ${checkouts.length} out`}
+            {checkouts.length > 0 && ` · ${checkouts.length} out`}
           </Label>
           {headerExtra && <span className="inline-flex items-center gap-1.5">{headerExtra}</span>}
         </div>
@@ -575,22 +368,20 @@ export function ItemList({ items, binId, readOnly, hideWhenEmpty, hideHeader, ch
                 {visibleItems.map((item, i) => {
                   const checkout = checkoutMap.get(item.id);
                   let row: React.ReactNode;
-                  if (checkout && readOnly) {
-                    row = <ReadOnlyCheckoutRow item={item} checkout={checkout} />;
-                  } else if (checkout) {
+                  if (checkout) {
                     row = (
-                      <CheckoutRow
+                      <ItemListCheckoutRow
                         item={item}
                         checkout={checkout}
-                        onReturn={binId ? () => handleReturn(item.id) : undefined}
-                        onDelete={() => handleDelete(item.id)}
+                        onReturn={!readOnly && binId ? () => handleReturn(item.id) : undefined}
+                        onDelete={!readOnly ? () => handleDelete(item.id) : undefined}
                       />
                     );
                   } else if (readOnly) {
-                    row = <ReadOnlyRow item={item} />;
+                    row = <ItemListReadOnlyRow item={item} />;
                   } else {
                     row = (
-                      <ItemRow
+                      <ItemListRow
                         text={item.name}
                         quantity={item.quantity}
                         saved={savedIds.has(item.id)}

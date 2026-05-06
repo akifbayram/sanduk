@@ -3,13 +3,13 @@ import type { Response } from 'express';
 import * as jose from 'jose';
 import { generateUuid, isUniqueViolation, query, withTransaction } from '../db.js';
 import { signToken } from '../middleware/auth.js';
-import { getRegistrationMode } from '../routes/admin.js';
 import { config } from './config.js';
 import { setAccessTokenCookie, setRefreshTokenCookie } from './cookies.js';
 import { ForbiddenError, UnauthorizedError } from './httpErrors.js';
 import { createLogger } from './logger.js';
 import { Plan, SubStatus } from './planGate.js';
 import { createRefreshToken } from './refreshTokens.js';
+import { getRegistrationMode } from './registrationMode.js';
 
 const log = createLogger('oauth');
 

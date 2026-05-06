@@ -2,7 +2,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import OpenAI from 'openai';
 import type { AiProviderConfig } from './aiCaller.js';
-import { AiAnalysisError, createPinnedFetch, mapSdkError, validateEndpointUrl } from './aiCaller.js';
+import { AiAnalysisError, mapSdkError } from './aiErrors.js';
+import { resolvePinnedFetch } from './aiSsrf.js';
 import type { StructureTextOverrides } from './structureText.js';
 
 export interface TranscribeResult {
@@ -22,11 +23,7 @@ export async function transcribeAudio(
   mimeType: string,
   overrides?: StructureTextOverrides,
 ): Promise<TranscribeResult> {
-  // SSRF protection
-  const resolvedIps = config.endpointUrl
-    ? await validateEndpointUrl(config.endpointUrl)
-    : undefined;
-  const pinnedFetch = resolvedIps ? createPinnedFetch(resolvedIps) : undefined;
+  const pinnedFetch = await resolvePinnedFetch(config.endpointUrl);
 
   switch (config.provider) {
     case 'openai':

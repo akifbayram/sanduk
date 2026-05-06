@@ -1,11 +1,11 @@
 import type { UserContent } from 'ai';
 import type { Request, Response } from 'express';
-import { createPinnedFetch, validateEndpointUrl } from './aiCaller.js';
 import { resizeImageForAi } from './aiImageResize.js';
 import { buildSystemPrompt as buildAnalysisPrompt, buildAnalysisUserText, IMAGE_TOKENS_MULTI, IMAGE_TOKENS_SINGLE } from './aiProviders.js';
 import { AiSuggestionsSchema } from './aiSchemas.js';
 import type { TaskType, UserAiSettings } from './aiSettings.js';
 import { getConfigForTask, getUserAiSettings } from './aiSettings.js';
+import { resolvePinnedFetch } from './aiSsrf.js';
 import { pipeAiStreamToResponse, withClientDisconnect } from './aiStream.js';
 import { verifyOptionalLocationMembership } from './binAccess.js';
 import { isDemoUser } from './config.js';
@@ -23,10 +23,7 @@ export async function resolveUserModel(userId: string, task: TaskType, demo = fa
   const taskConfig = group
     ? await resolveTaskConfig(userId, group, settings.config)
     : getConfigForTask(settings, task);
-  const resolvedIps = taskConfig.endpointUrl
-    ? await validateEndpointUrl(taskConfig.endpointUrl, demo)
-    : undefined;
-  const pinnedFetch = resolvedIps ? createPinnedFetch(resolvedIps) : undefined;
+  const pinnedFetch = await resolvePinnedFetch(taskConfig.endpointUrl, demo);
   const model = createSdkModel(taskConfig, pinnedFetch);
   return { settings, model };
 }

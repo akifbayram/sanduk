@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAiStream } from '@/features/ai/useAiStream';
 import { addBin, deleteBin, updateBin } from '@/features/bins/useBins';
 import { useAuth } from '@/lib/auth';
@@ -43,9 +43,10 @@ export function useReorganize() {
   const [isApplying, setIsApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
 
-  const partialResult: PartialReorgResult = partialText
-    ? parsePartialReorg(partialText)
-    : { bins: [], summary: '' };
+  const partialResult: PartialReorgResult = useMemo(
+    () => (partialText ? parsePartialReorg(partialText) : { bins: [], summary: '' }),
+    [partialText],
+  );
 
   const startReorg = useCallback(
     (bins: Bin[], maxBins?: number, areaId?: string, areaName?: string, options?: ReorgOptions) => {

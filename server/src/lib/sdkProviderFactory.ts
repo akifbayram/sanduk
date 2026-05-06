@@ -4,7 +4,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModel } from 'ai';
 import type { AiProviderConfig } from './aiCaller.js';
-import { AiAnalysisError } from './aiCaller.js';
+import { AiAnalysisError } from './aiErrors.js';
 
 /**
  * Create a Vercel AI SDK LanguageModel from a per-user AiProviderConfig.
