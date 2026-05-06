@@ -1,5 +1,5 @@
 import { d, query } from '../db.js';
-import { normalizeForCompare, simplePluralStem } from './inventoryMatch.js';
+import { normalizeForCompare, normalizeForMatch, simplePluralStem } from './inventoryMatch.js';
 
 export interface CandidateBin {
   bin_id: string;
@@ -91,7 +91,15 @@ export async function findLiteralMatches(
   userId: string,
   terms: string[],
 ): Promise<CandidateBin[]> {
-  const stems = [...new Set(terms.map((t) => simplePluralStem(normalizeForCompare(t))).filter((s) => s.length >= 2))];
+  // Build search terms from both the plural-stemmed form AND the un-stemmed
+  // normalized form. This ensures that a haystack tag stored verbatim (e.g. the
+  // tag "hobbies") is still matched when a term like "hobbies" is queried:
+  // simplePluralStem(normalizeForCompare("hobbies")) → "hobby", but the tag
+  // "hobbies" in the DB won't match LIKE %hobby%. Including the un-stemmed
+  // normalized form "hobbies" adds a second LIKE %hobbies% that does match.
+  const stemmed = terms.map((t) => simplePluralStem(normalizeForCompare(t))).filter((s) => s.length >= 2);
+  const unstemmed = terms.map((t) => normalizeForMatch(t)).filter((s) => s.length >= 2);
+  const stems = [...new Set([...stemmed, ...unstemmed])];
   if (stems.length === 0) return [];
 
   const params: unknown[] = [locationId, userId];
