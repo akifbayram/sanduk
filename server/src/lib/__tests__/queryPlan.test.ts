@@ -95,9 +95,11 @@ describe('buildPlannerSystemPrompt', () => {
     expect(p).toMatch(/never (invent|guess|emit)|do not invent/i);
   });
 
-  it('honors a user-supplied custom prompt as a prefix', () => {
+  it('appends user-supplied custom prompt as additional guidance (never replaces planner instructions)', () => {
     const p = buildPlannerSystemPrompt('Be concise.');
     expect(p).toContain('Be concise.');
+    expect(p).toMatch(/metadata|content|refusal/i);
+    expect(p).toContain('ADDITIONAL USER GUIDANCE');
   });
 });
 

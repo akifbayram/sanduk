@@ -21,7 +21,7 @@ export function normalizeForMatch(s: string): string {
  */
 export function simplePluralStem(word: string): string {
   const w = word.toLowerCase();
-  if (w.length >= 4 && w.endsWith('ies')) return `${w.slice(0, -3)}y`;
+  if (w.length >= 5 && w.endsWith('ies')) return `${w.slice(0, -3)}y`;
   // Strip 'es' (2 chars) only for sibilant-stem plurals (boxes, foxes, buzzes).
   // Words like 'cables' are stem-ends-in-e + s; the plain-s rule handles those.
   // Sibilants that require 'es' in English: x, z, s (non-ss already filtered), ch, sh.

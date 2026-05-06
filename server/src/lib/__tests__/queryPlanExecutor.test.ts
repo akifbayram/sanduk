@@ -155,3 +155,40 @@ describe('executeQueryPlan — scope', () => {
     expect(result.matches.map((m) => m.name)).toEqual(['Battery A']);
   });
 });
+
+describe('executeQueryPlan — pre-filter limits (merged_bug_004)', () => {
+  it('fields=tag filter is applied in SQL before LIMIT so tagged bins beyond position 30 are still found', async () => {
+    const s = await setup();
+    for (let i = 0; i < 40; i++) {
+      await createTestBin(app, s.token, s.locationId, { name: `Tools Bin ${i}` });
+    }
+    const taggedA = await createTestBin(app, s.token, s.locationId, { name: 'Tagged A', tags: ['tools'] });
+    const taggedB = await createTestBin(app, s.token, s.locationId, { name: 'Tagged B', tags: ['tools'] });
+    const taggedC = await createTestBin(app, s.token, s.locationId, { name: 'Tagged C', tags: ['tools'] });
+
+    const result = await executeQueryPlan(
+      { kind: 'content', terms: ['tools'], fields: ['tag'], answer: 'Here.' },
+      s.locationId,
+      s.userId,
+    );
+    const names = result.matches.map((m) => m.name);
+    expect(names).toContain(taggedA.name);
+    expect(names).toContain(taggedB.name);
+    expect(names).toContain(taggedC.name);
+    for (const name of names) {
+      expect(name).not.toMatch(/^Tools Bin \d+$/);
+    }
+  });
+
+  it('includes total_item_count in hydrated matches', async () => {
+    const s = await setup();
+    await createTestBin(app, s.token, s.locationId, { name: 'Multi', items: ['A', 'B', 'C'] });
+
+    const result = await executeQueryPlan(
+      { kind: 'content', terms: ['multi'], answer: 'Here.' },
+      s.locationId,
+      s.userId,
+    );
+    expect(result.matches[0].total_item_count).toBe(3);
+  });
+});

@@ -147,6 +147,53 @@ describe('findTrashedMatches', () => {
   });
 });
 
+describe('findLiteralMatches — punctuation normalization', () => {
+  it("matches bin with apostrophe in name via query without apostrophe", async () => {
+    const s = await setup();
+    await createTestBin(app, s.token, s.locationId, { name: "Tom's Tools" });
+
+    const got = await findLiteralMatches(s.locationId, s.userId, ["Tom's tools"]);
+    expect(got.map((b) => b.name)).toContain("Tom's Tools");
+  });
+
+  it('matches bin with hyphen in name via query without hyphen', async () => {
+    const s = await setup();
+    await createTestBin(app, s.token, s.locationId, { name: 'AA-Batteries' });
+
+    const got = await findLiteralMatches(s.locationId, s.userId, ['AA batteries']);
+    expect(got.map((b) => b.name)).toContain('AA-Batteries');
+  });
+
+  it('matches bin with hash in name via query term without hash', async () => {
+    const s = await setup();
+    await createTestBin(app, s.token, s.locationId, { name: 'Phillips #2 Screwdriver' });
+
+    const got = await findLiteralMatches(s.locationId, s.userId, ['phillips', 'screwdriver']);
+    expect(got.map((b) => b.name)).toContain('Phillips #2 Screwdriver');
+  });
+});
+
+describe('findLiteralMatches — fields SQL filter', () => {
+  it('restricts to tag-only matches in SQL (not post-filtered after LIMIT)', async () => {
+    const s = await setup();
+    for (let i = 0; i < 35; i++) {
+      await createTestBin(app, s.token, s.locationId, { name: `Tools Bin ${i}` });
+    }
+    await createTestBin(app, s.token, s.locationId, { name: 'Other', tags: ['tools'] });
+    await createTestBin(app, s.token, s.locationId, { name: 'Another', tags: ['tools'] });
+    await createTestBin(app, s.token, s.locationId, { name: 'Third', tags: ['tools'] });
+
+    const got = await findLiteralMatches(s.locationId, s.userId, ['tools'], { fields: ['tag'] });
+    const names = got.map((b) => b.name);
+    expect(names).toContain('Other');
+    expect(names).toContain('Another');
+    expect(names).toContain('Third');
+    for (const name of names) {
+      expect(name).not.toMatch(/^Tools Bin \d+$/);
+    }
+  });
+});
+
 describe('findNearMissBins', () => {
   it('returns bins whose name fuzzy-matches when no literal hit exists', async () => {
     const s = await setup();

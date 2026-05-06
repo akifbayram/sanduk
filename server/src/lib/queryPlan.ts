@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { resolvePrompt, sanitizeForPrompt, withHardening } from './aiSanitize.js';
+import { sanitizeForPrompt, withHardening } from './aiSanitize.js';
 
 export const QueryPlanMetadataKind = z.enum(['pinned', 'private', 'checked_out', 'trashed']);
 export const QueryPlanField = z.enum(['name', 'tag', 'item']);
@@ -121,14 +121,14 @@ EDGE CASES
 - Pronouns referring to a previous result ("the red ones", "only the private ones"): if the previous turn returned matches and the pronoun narrows them, emit a content plan using terms from the original turn. If you cannot resolve the pronoun, refuse with the reason.`;
 
 export function buildPlannerSystemPrompt(customPrompt?: string, isDemoUser?: boolean): string {
-  const basePrompt = resolvePrompt(PLANNER_PROMPT, customPrompt, isDemoUser);
-  return withHardening(basePrompt);
+  const customSection = !isDemoUser && customPrompt ? `\n\nADDITIONAL USER GUIDANCE:\n${customPrompt}` : '';
+  return withHardening(`${PLANNER_PROMPT}${customSection}`);
 }
 
 export function buildPlannerUserMessage(question: string, schema: PlannerSchemaContext): string {
   const compact = {
-    tags: schema.tags.slice(0, 200),
-    areas: schema.areas.slice(0, 100),
+    tags: schema.tags.slice(0, 200).map(sanitizeForPrompt),
+    areas: schema.areas.slice(0, 100).map(sanitizeForPrompt),
   };
   return `Question: ${sanitizeForPrompt(question)}
 
