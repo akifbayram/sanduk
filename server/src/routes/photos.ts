@@ -15,33 +15,60 @@ const router = Router();
 
 router.use(authenticate);
 
-// GET /api/photos — list photos for a bin
+// GET /api/photos — list photos for a bin or location
+// Requires either bin_id or location_id. Accepts optional limit (1–200).
 router.get('/', asyncHandler(async (req, res) => {
   const binId = req.query.bin_id as string | undefined;
+  const locationId = req.query.location_id as string | undefined;
+  const limitRaw = req.query.limit !== undefined ? Number(req.query.limit) : undefined;
+  const limit = limitRaw !== undefined && !Number.isNaN(limitRaw) ? Math.max(1, Math.min(200, limitRaw)) : undefined;
 
-  if (!binId) {
-    throw new ValidationError('bin_id query parameter is required');
+  if (binId) {
+    // Verify user has access to the bin's location (and visibility)
+    const accessResult = await query(
+      `SELECT b.location_id FROM bins b
+       JOIN location_members lm ON lm.location_id = b.location_id AND lm.user_id = $2
+       WHERE b.id = $1 AND (b.visibility = 'location' OR b.created_by = $2)`,
+      [binId, req.user!.id]
+    );
+
+    if (accessResult.rows.length === 0) {
+      throw new ForbiddenError('Access denied');
+    }
+
+    const limitClause = limit !== undefined ? ` LIMIT ${limit}` : '';
+    const result = await query(
+      `SELECT id, bin_id, filename, mime_type, size, created_by, created_at
+       FROM photos WHERE bin_id = $1 ORDER BY created_at ASC${limitClause}`,
+      [binId]
+    );
+
+    res.json({ results: result.rows, count: result.rows.length });
+  } else if (locationId) {
+    // Verify user is a member of this location
+    const memberResult = await query(
+      'SELECT 1 FROM location_members WHERE location_id = $1 AND user_id = $2',
+      [locationId, req.user!.id]
+    );
+
+    if (memberResult.rows.length === 0) {
+      throw new ForbiddenError('Access denied');
+    }
+
+    const limitClause = limit !== undefined ? ` LIMIT ${limit}` : '';
+    const result = await query(
+      `SELECT p.id, p.bin_id, p.filename, p.mime_type, p.size, p.created_by, p.created_at
+       FROM photos p
+       JOIN bins b ON b.id = p.bin_id
+       WHERE b.location_id = $1 AND b.deleted_at IS NULL
+       ORDER BY p.created_at ASC${limitClause}`,
+      [locationId]
+    );
+
+    res.json({ results: result.rows, count: result.rows.length });
+  } else {
+    throw new ValidationError('bin_id or location_id query parameter is required');
   }
-
-  // Verify user has access to the bin's location (and visibility)
-  const accessResult = await query(
-    `SELECT b.location_id FROM bins b
-     JOIN location_members lm ON lm.location_id = b.location_id AND lm.user_id = $2
-     WHERE b.id = $1 AND (b.visibility = 'location' OR b.created_by = $2)`,
-    [binId, req.user!.id]
-  );
-
-  if (accessResult.rows.length === 0) {
-    throw new ForbiddenError('Access denied');
-  }
-
-  const result = await query(
-    `SELECT id, bin_id, filename, mime_type, size, created_by, created_at
-     FROM photos WHERE bin_id = $1 ORDER BY created_at ASC`,
-    [binId]
-  );
-
-  res.json({ results: result.rows, count: result.rows.length });
 }));
 
 // GET /api/photos/:id/file — serve photo file
