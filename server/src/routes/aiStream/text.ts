@@ -15,6 +15,7 @@ import { parseHistoryFromBody } from '../../lib/conversationHistory.js';
 import { ForbiddenError } from '../../lib/httpErrors.js';
 import { classifyIntent } from '../../lib/intentClassifier.js';
 import { buildSystemPrompt as buildQuerySysPrompt, buildUserMessage as buildQueryUserMsg } from '../../lib/inventoryQuery.js';
+import { markAiAsked } from '../../lib/markAiAsked.js';
 import { aiRateLimiters } from '../../lib/rateLimiters.js';
 import { buildPrompt as buildStructurePrompt, STRUCTURE_TEXT_TOKENS } from '../../lib/structureText.js';
 import { requireLocationMemberOrAbove } from '../../middleware/locationAccess.js';
@@ -41,6 +42,8 @@ router.post('/query/stream', ...aiRateLimiters, requireAiAccess(), checkAiCredit
     ...streamOpts(settings, req, { maxTokens: 4096, temperature: 0.2 }),
     enrichResult: makeQueryEnrichResult(locationId, req.user!.id),
   });
+  // Fire-and-forget: flag the user as having tried AI for the onboarding checklist.
+  void markAiAsked(req.user!.id);
 }));
 
 // POST /api/ai/command/stream
@@ -64,6 +67,8 @@ router.post('/command/stream', ...aiRateLimiters, requireAiAccess(), checkAiCred
     ...streamOpts(settings, req, { maxTokens: 2500, temperature: 0.2 }),
     enrichResult: makeCommandEnrichResult(locationId, req.user!.id),
   });
+  // Fire-and-forget: flag the user as having tried AI for the onboarding checklist.
+  void markAiAsked(req.user!.id);
 }));
 
 // POST /api/ai/ask/stream — unified command+query endpoint
@@ -94,6 +99,8 @@ router.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCredits(
       ...streamOpts(settings, req, { maxTokens: 4096, temperature: 0.2 }),
       enrichResult: makeQueryEnrichResult(locationId, req.user!.id),
     });
+    // Fire-and-forget: flag the user as having tried AI for the onboarding checklist.
+    void markAiAsked(req.user!.id);
   } else {
     const [{ settings, model }, context] = await Promise.all([
       resolveUserModel(req.user!.id, 'command', isDemoUser(req)),
@@ -112,6 +119,8 @@ router.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCredits(
       ...streamOpts(settings, req, { maxTokens: 2500, temperature: 0.2 }),
       enrichResult: makeCommandEnrichResult(locationId, req.user!.id),
     });
+    // Fire-and-forget: flag the user as having tried AI for the onboarding checklist.
+    void markAiAsked(req.user!.id);
   }
 }));
 
