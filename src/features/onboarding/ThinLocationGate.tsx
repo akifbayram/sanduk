@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { FormField } from '@/components/ui/form-field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { apiFetch } from '@/lib/api';
+import { createLocation } from '@/features/locations/useLocations';
 import { useAuth } from '@/lib/auth';
-import { Events, notify } from '@/lib/eventBus';
 import { useTerminology } from '@/lib/terminology';
 import { useUserPreferences } from '@/lib/userPreferences';
-import type { Location } from '@/types';
 
 export function ThinLocationGate() {
   const t = useTerminology();
@@ -23,17 +21,13 @@ export function ThinLocationGate() {
     setLoading(true);
     setError(null);
     try {
-      const location = await apiFetch<Location>('/api/locations', {
-        method: 'POST',
-        body: { name: name.trim() },
-      });
+      const location = await createLocation(name.trim());
       setActiveLocationId(location.id);
       updatePreferences({
         checklist_eligible: true,
         onboarding_completed: true,
         onboarding_location_id: location.id,
       });
-      notify(Events.LOCATIONS);
     } catch (_err) {
       setError("Couldn't create the location. Try again.");
       setLoading(false);
@@ -50,8 +44,7 @@ export function ThinLocationGate() {
           Home, garage, office — whatever fits.
         </p>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <div>
-            <Label htmlFor="thin-gate-name">Name</Label>
+          <FormField label="Name" htmlFor="thin-gate-name" error={error ?? undefined}>
             <Input
               id="thin-gate-name"
               autoFocus
@@ -60,8 +53,7 @@ export function ThinLocationGate() {
               placeholder="My Home"
               disabled={loading}
             />
-          </div>
-          {error && <p className="text-[13px] text-[var(--color-error)]">{error}</p>}
+          </FormField>
           <Button type="submit" disabled={!name.trim() || loading}>
             {loading ? 'Creating…' : `Create ${t.location}`}
           </Button>

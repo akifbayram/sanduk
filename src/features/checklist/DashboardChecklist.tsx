@@ -1,8 +1,10 @@
 import { Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { getCommandInputRef } from '@/features/tour/TourProvider';
-import { cn, focusRing } from '@/lib/utils';
+import { cn, flatCard } from '@/lib/utils';
 import { ChecklistItem } from './ChecklistItem';
+import type { ChecklistStepId } from './checklistSteps';
 import { useChecklist } from './useChecklist';
 
 interface DashboardChecklistProps {
@@ -17,7 +19,7 @@ export function DashboardChecklist({ totalBins, setCreateOpen, onUpgradeClick }:
 
   if (isHidden) return null;
 
-  function buildActions(stepId: string, gated?: boolean) {
+  function buildActions(stepId: ChecklistStepId, gated?: boolean) {
     if (stepId === 'create-bin') {
       return {
         primary: { label: 'Take a photo', onClick: () => setCreateOpen(true) },
@@ -45,10 +47,7 @@ export function DashboardChecklist({ totalBins, setCreateOpen, onUpgradeClick }:
   }
 
   return (
-    <section
-      aria-labelledby="dash-checklist"
-      className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-card)] p-4"
-    >
+    <section aria-labelledby="dash-checklist" className={cn(flatCard, 'p-4')}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[var(--accent)]" />
@@ -59,17 +58,15 @@ export function DashboardChecklist({ totalBins, setCreateOpen, onUpgradeClick }:
             {completedCount} of {steps.length}
           </span>
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={dismiss}
           aria-label="Dismiss checklist"
-          className={cn(
-            'h-7 w-7 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-active)] transition-colors',
-            focusRing,
-          )}
         >
           <X className="h-4 w-4" />
-        </button>
+        </Button>
       </div>
       <div className="flex flex-col gap-1">
         {steps.map((step) => {

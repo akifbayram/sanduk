@@ -23,7 +23,7 @@ const DEMO_COMPLETION_ACTIONS: CompletionAction[] = [
 export function OnboardingOverlay(props: OnboardingActions) {
   const { step, totalSteps, advanceWithLocation, advanceStep, complete, demoMode, activeLocationId } = props;
   const state = useOnboardingActions(props);
-  const { displayedStep, transitioning, loading, navigate } = state;
+  const { displayedStep, transitioning, navigate } = state;
   const dots = Array.from({ length: totalSteps });
 
   function handleAction(action: CompletionAction) {
@@ -42,18 +42,18 @@ export function OnboardingOverlay(props: OnboardingActions) {
   useEffect(() => {
     if (!demoMode) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !loading) state.handleSkipSetup();
+      if (e.key === 'Escape') state.handleSkipSetup();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [demoMode, loading, state.handleSkipSetup]);
+  }, [demoMode, state.handleSkipSetup]);
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop dismisses demo only; Escape provides keyboard equivalent
     // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard equivalent handled via document-level Escape listener above
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-backdrop)]"
-      onClick={demoMode && !loading ? state.handleSkipSetup : undefined}
+      onClick={demoMode ? state.handleSkipSetup : undefined}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: card swallows backdrop clicks so only the backdrop dismisses */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only — no keyboard equivalent needed */}
@@ -65,9 +65,8 @@ export function OnboardingOverlay(props: OnboardingActions) {
         <button
           type="button"
           onClick={state.handleSkipSetup}
-          disabled={loading}
           aria-label="Close setup"
-          className={cn(closeButton, focusRing, 'disabled:opacity-40')}
+          className={cn(closeButton, focusRing)}
         >
           <X className="h-4 w-4" />
         </button>

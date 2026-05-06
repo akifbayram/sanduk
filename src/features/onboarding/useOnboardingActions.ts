@@ -5,7 +5,6 @@ import { markDemoTourDone } from './onboardingConstants';
 
 export interface OnboardingState {
   navigate: ReturnType<typeof useNavigate>;
-  loading: boolean;
   displayedStep: number;
   transitioning: boolean;
   handleSkipSetup: () => void;
@@ -15,7 +14,6 @@ export function useOnboardingActions(props: OnboardingActions): OnboardingState 
   const { step, complete, demoMode } = props;
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(false);
   const [displayedStep, setDisplayedStep] = useState(step);
   const transitioning = step !== displayedStep;
 
@@ -31,15 +29,12 @@ export function useOnboardingActions(props: OnboardingActions): OnboardingState 
   }, []);
 
   function handleSkipSetup() {
-    setLoading(true);
     if (demoMode) markDemoTourDone();
     complete();
-    setLoading(false);
   }
 
   return {
     navigate,
-    loading,
     displayedStep,
     transitioning,
     handleSkipSetup,

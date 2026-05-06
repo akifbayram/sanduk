@@ -150,11 +150,9 @@ export function AppLayout() {
 
   useKeyboardShortcuts({ actions: shortcutActions, enabled: !onboarding.isOnboarding && preferences.keyboard_shortcuts_enabled });
 
-  // If the user already has locations before onboarding even started (e.g. completed on
-  // another device), mark it done locally so the overlay never shows. Only check once —
-  // the first time locations finish loading — to avoid a race condition where
-  // createLocation's notifyLocationsChanged() refetch resolves before advanceWithLocation
-  // updates the step from 0 to 1, which would incorrectly auto-complete the onboarding.
+  // If the user already has locations on first load (e.g. completed on another device),
+  // mark onboarding done so the demo overlay never shows. Only check once to avoid racing
+  // with advanceWithLocation while the demo flow is mid-step.
   const didAutoCompleteCheck = useRef(false);
   useEffect(() => {
     if (didAutoCompleteCheck.current) return;
