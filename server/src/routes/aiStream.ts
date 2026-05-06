@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { buildCommandContext, buildInventoryContext } from '../lib/aiContext.js';
+import { buildCommandContext, buildInventoryContext, buildPlannerSchemaContext } from '../lib/aiContext.js';
 import { reorganizeWeight, visionWeight } from '../lib/aiCreditWeights.js';
 import { buildMockAnalysisResult, loadPhotosForAnalysis } from '../lib/aiPhotoLoader.js';
 import { buildCorrectionPrompt, buildReanalysisPrompt, buildReanalysisUserContent } from '../lib/aiProviders.js';
@@ -18,10 +18,10 @@ import { config, isDemoUser } from '../lib/config.js';
 import { parseHistoryFromBody } from '../lib/conversationHistory.js';
 import { ForbiddenError, ValidationError } from '../lib/httpErrors.js';
 import { classifyIntent } from '../lib/intentClassifier.js';
-import type { CandidateBin } from '../lib/inventoryMatcher.js';
-import { buildFormatterSystemPrompt, buildFormatterUserMessage, buildSystemPrompt as buildQuerySysPrompt, buildUserMessage as buildQueryUserMsg, enrichQueryMatches, type RawMatch } from '../lib/inventoryQuery.js';
-import { applyMatchSetGuard, runDeterministicQuery } from '../lib/inventoryQueryDeterministic.js';
+import { buildSystemPrompt as buildQuerySysPrompt, buildUserMessage as buildQueryUserMsg, enrichQueryMatches, type RawMatch } from '../lib/inventoryQuery.js';
 import { assertReorganizeBinLimit, refundAiCredit } from '../lib/planGate.js';
+import { buildPlannerSystemPrompt, buildPlannerUserMessage, QueryPlanSchema, validateQueryPlan } from '../lib/queryPlan.js';
+import { executeQueryPlan } from '../lib/queryPlanExecutor.js';
 import { aiRateLimiters } from '../lib/rateLimiters.js';
 import { detectReorganizeMismatch } from '../lib/reorganizeMismatch.js';
 import { buildReorganizePrompt } from '../lib/reorganizePrompt.js';
@@ -63,15 +63,6 @@ function makeQueryEnrichResult(locationId: string, userId: string) {
     const enriched = await enrichQueryMatches(matches, locationId, userId);
     return { answer: r.answer ?? '', matches: enriched };
   };
-}
-
-/**
- * Enricher for the deterministic query path. The LLM emits candidate
- * bin_codes with relevance strings; we intersect with the server's pre-matched
- * set and hydrate with full bin data.
- */
-function makeFormatterEnrichResult(candidates: CandidateBin[]) {
-  return async (parsed: unknown) => applyMatchSetGuard(parsed, candidates);
 }
 
 /**
@@ -159,7 +150,7 @@ function reorganizeBinCountFromReq(req: import('express').Request): number {
   return Array.isArray(body.bins) ? body.bins.length : 0;
 }
 
-async function streamDeterministicQuery(
+async function streamPlannedQuery(
   res: import('express').Response,
   req: import('express').Request,
   question: string,
@@ -169,16 +160,19 @@ async function streamDeterministicQuery(
   priorMessages: import('ai').ModelMessage[],
 ): Promise<void> {
   const { settings, model } = await resolveUserModel(req.user!.id, 'query', isDemoUser(req));
-  const matchResult = await runDeterministicQuery(locationId, req.user!.id, question, scopedBinIds);
-  const userPayload = buildFormatterUserMessage(`${scopeNote}${question}`, matchResult);
+  const schemaCtx = await buildPlannerSchemaContext(locationId);
 
   await pipeAiStreamToResponse(res, model, {
-    schema: undefined, // intentionally unconstrained — formatter prompt + post-filter handle shape
-    system: buildFormatterSystemPrompt(settings.query_prompt ?? undefined, isDemoUser(req)),
-    userContent: userPayload,
+    schema: QueryPlanSchema,
+    system: buildPlannerSystemPrompt(settings.query_prompt ?? undefined, isDemoUser(req)),
+    userContent: buildPlannerUserMessage(`${scopeNote}${question}`, schemaCtx),
     priorMessages,
-    ...streamOpts(settings, req, { maxTokens: 1500, temperature: 0.2 }),
-    enrichResult: makeFormatterEnrichResult(matchResult.candidates),
+    ...streamOpts(settings, req, { maxTokens: 800, temperature: 0.2 }),
+    enrichResult: async (parsed) => {
+      const plan = validateQueryPlan(parsed as Parameters<typeof validateQueryPlan>[0]);
+      const executed = await executeQueryPlan(plan, locationId, req.user!.id, scopedBinIds);
+      return { answer: executed.answer, matches: executed.matches };
+    },
   });
 }
 
@@ -189,7 +183,7 @@ streamRouter.post('/query/stream', ...aiRateLimiters, requireAiAccess(), checkAi
   const priorMessages = parseHistoryFromBody(req.body);
 
   if (config.aiDeterministicMatch) {
-    await streamDeterministicQuery(res, req, question, locationId, undefined, '', priorMessages);
+    await streamPlannedQuery(res, req, question, locationId, undefined, '', priorMessages);
     return;
   }
 
@@ -247,7 +241,7 @@ streamRouter.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCr
 
   if (intent === 'query') {
     if (config.aiDeterministicMatch) {
-      await streamDeterministicQuery(res, req, text, locationId, binIds, scopeNote, priorMessages);
+      await streamPlannedQuery(res, req, text, locationId, binIds, scopeNote, priorMessages);
       return;
     }
     const [{ settings, model }, queryContext] = await Promise.all([
