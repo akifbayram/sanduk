@@ -46,7 +46,7 @@ import exportRoutes from './routes/export/index.js';
 import { internalRoutes } from './routes/internal.js';
 import itemCheckoutsRoutes, { locationCheckoutsRouter as locationCheckoutsRoutes } from './routes/itemCheckouts.js';
 import itemsRoutes from './routes/items/index.js';
-import locationsRoutes from './routes/locations.js';
+import locationsRoutes from './routes/locations/index.js';
 import photosRoutes from './routes/photos.js';
 import { planRoutes } from './routes/plan.js';
 import printSettingsRoutes from './routes/printSettings.js';
