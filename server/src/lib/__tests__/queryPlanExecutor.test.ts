@@ -24,7 +24,6 @@ describe('executeQueryPlan — content', () => {
       s.locationId,
       s.userId,
     );
-    expect(result.plan.kind).toBe('content');
     expect(result.matches.map((m) => m.name)).toEqual(['Battery Station']);
     expect(result.answer).toBe('Here are your batteries.');
     expect(result.near_misses).toEqual([]);

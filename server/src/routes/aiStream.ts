@@ -20,7 +20,7 @@ import { ForbiddenError, ValidationError } from '../lib/httpErrors.js';
 import { classifyIntent } from '../lib/intentClassifier.js';
 import { buildSystemPrompt as buildQuerySysPrompt, buildUserMessage as buildQueryUserMsg, enrichQueryMatches, type RawMatch } from '../lib/inventoryQuery.js';
 import { assertReorganizeBinLimit, refundAiCredit } from '../lib/planGate.js';
-import { buildPlannerSystemPrompt, buildPlannerUserMessage, QueryPlanSchema, validateQueryPlan } from '../lib/queryPlan.js';
+import { buildPlannerSystemPrompt, buildPlannerUserMessage, normalizePlanAliases, QueryPlanSchema, validateQueryPlan } from '../lib/queryPlan.js';
 import { executeQueryPlan } from '../lib/queryPlanExecutor.js';
 import { aiRateLimiters } from '../lib/rateLimiters.js';
 import { detectReorganizeMismatch } from '../lib/reorganizeMismatch.js';
@@ -150,43 +150,24 @@ function reorganizeBinCountFromReq(req: import('express').Request): number {
   return Array.isArray(body.bins) ? body.bins.length : 0;
 }
 
-/**
- * Some providers (Gemini in particular) rename keys when emitting structured
- * output, even with a Zod schema constraint. Map the common aliases back to
- * the canonical keys before Zod validation.
- */
-function normalizePlanAliases(parsed: unknown): unknown {
-  if (!parsed || typeof parsed !== 'object') return parsed;
-  const o = parsed as Record<string, unknown>;
-  const out: Record<string, unknown> = { ...o };
-  // discriminator aliases
-  if (out.kind === undefined) {
-    if (typeof o.plan === 'string') out.kind = o.plan;
-    else if (typeof o.type === 'string') out.kind = o.type;
-    else if (typeof o.intent === 'string') out.kind = o.intent;
-  }
-  // answer-field aliases
-  if (out.answer === undefined) {
-    if (typeof o.query_answer === 'string') out.answer = o.query_answer;
-    else if (typeof o.response === 'string') out.answer = o.response;
-    else if (typeof o.message === 'string') out.answer = o.message;
-  }
-  // terms-field aliases
-  if (out.terms === undefined && Array.isArray(o.search_terms)) out.terms = o.search_terms;
-  return out;
+interface StreamPlannedQueryArgs {
+  question: string;
+  locationId: string;
+  scopedBinIds?: string[];
+  scopeNote?: string;
+  priorMessages: import('ai').ModelMessage[];
 }
 
 async function streamPlannedQuery(
   res: import('express').Response,
   req: import('express').Request,
-  question: string,
-  locationId: string,
-  scopedBinIds: string[] | undefined,
-  scopeNote: string,
-  priorMessages: import('ai').ModelMessage[],
+  args: StreamPlannedQueryArgs,
 ): Promise<void> {
-  const { settings, model } = await resolveUserModel(req.user!.id, 'query', isDemoUser(req));
-  const schemaCtx = await buildPlannerSchemaContext(locationId);
+  const { question, locationId, scopedBinIds, scopeNote = '', priorMessages } = args;
+  const [{ settings, model }, schemaCtx] = await Promise.all([
+    resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
+    buildPlannerSchemaContext(locationId),
+  ]);
 
   await pipeAiStreamToResponse(res, model, {
     schema: QueryPlanSchema,
@@ -195,20 +176,11 @@ async function streamPlannedQuery(
     priorMessages,
     ...streamOpts(settings, req, { maxTokens: 800, temperature: 0.2 }),
     enrichResult: async (parsed) => {
-      // Re-validate via Zod safeParse: some providers (notably Gemini) silently
-      // rename keys in structured output ("kind" → "plan", "answer" → "query_answer").
-      // Normalize known aliases before parsing, then fall back gracefully if the
-      // shape still doesn't match.
-      const normalized = normalizePlanAliases(parsed);
-      const safe = QueryPlanSchema.safeParse(normalized);
+      const safe = QueryPlanSchema.safeParse(normalizePlanAliases(parsed));
       if (!safe.success) {
-        return {
-          answer: "I couldn't understand that. Try rephrasing your question.",
-          matches: [],
-        };
+        return { answer: "I couldn't understand that. Try rephrasing your question.", matches: [] };
       }
-      const plan = validateQueryPlan(safe.data);
-      const executed = await executeQueryPlan(plan, locationId, req.user!.id, scopedBinIds);
+      const executed = await executeQueryPlan(validateQueryPlan(safe.data), locationId, req.user!.id, scopedBinIds);
       return { answer: executed.answer, matches: executed.matches };
     },
   });
@@ -221,11 +193,10 @@ streamRouter.post('/query/stream', ...aiRateLimiters, requireAiAccess(), checkAi
   const priorMessages = parseHistoryFromBody(req.body);
 
   if (config.aiDeterministicMatch) {
-    await streamPlannedQuery(res, req, question, locationId, undefined, '', priorMessages);
+    await streamPlannedQuery(res, req, { question, locationId, priorMessages });
     return;
   }
 
-  // ── Legacy path (unchanged) ──
   const [{ settings, model }, context] = await Promise.all([
     resolveUserModel(req.user!.id, 'query', isDemoUser(req)),
     buildInventoryContext(locationId, req.user!.id, undefined, question),
@@ -296,7 +267,7 @@ streamRouter.post('/ask/stream', ...aiRateLimiters, requireAiAccess(), checkAiCr
 
   if (intent === 'query') {
     if (config.aiDeterministicMatch) {
-      await streamPlannedQuery(res, req, text, locationId, binIds, scopeNote, priorMessages);
+      await streamPlannedQuery(res, req, { question: text, locationId, scopedBinIds: binIds, scopeNote, priorMessages });
       return;
     }
     const [{ settings, model }, queryContext] = await Promise.all([

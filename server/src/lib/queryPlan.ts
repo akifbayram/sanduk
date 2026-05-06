@@ -30,6 +30,29 @@ export interface PlannerSchemaContext {
 }
 
 /**
+ * Some providers (Gemini in particular) rename schema keys when emitting
+ * structured output, even with a Zod schema constraint. Map common aliases
+ * back to the canonical keys before Zod validation.
+ */
+export function normalizePlanAliases(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== 'object') return parsed;
+  const o = parsed as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...o };
+  if (out.kind === undefined) {
+    if (typeof o.plan === 'string') out.kind = o.plan;
+    else if (typeof o.type === 'string') out.kind = o.type;
+    else if (typeof o.intent === 'string') out.kind = o.intent;
+  }
+  if (out.answer === undefined) {
+    if (typeof o.query_answer === 'string') out.answer = o.query_answer;
+    else if (typeof o.response === 'string') out.answer = o.response;
+    else if (typeof o.message === 'string') out.answer = o.message;
+  }
+  if (out.terms === undefined && Array.isArray(o.search_terms)) out.terms = o.search_terms;
+  return out;
+}
+
+/**
  * SQL-Guard-style post-Zod validator. Strips empty/whitespace terms,
  * de-duplicates case-sensitively (the matcher lower-cases haystacks anyway),
  * and rejects content plans that end up empty.

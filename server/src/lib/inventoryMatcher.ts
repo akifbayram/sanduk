@@ -1,5 +1,5 @@
 import { d, query } from '../db.js';
-import { normalizeForCompare, normalizeForMatch, simplePluralStem } from './inventoryMatch.js';
+import { buildSearchProbes, normalizeForCompare } from './inventoryMatch.js';
 
 export interface CandidateBin {
   bin_id: string;
@@ -51,6 +51,9 @@ const CANDIDATE_FROM = `
   LEFT JOIN pinned_bins pb ON pb.bin_id = b.id AND pb.user_id = $2
 `;
 
+/** Location-shared bins are visible to all members; private bins only to their creator. */
+const VISIBILITY_FILTER = "(b.visibility = 'location' OR b.created_by = $2)";
+
 const MAX_CANDIDATES = 30;
 
 interface RawRow {
@@ -91,22 +94,14 @@ export async function findLiteralMatches(
   userId: string,
   terms: string[],
 ): Promise<CandidateBin[]> {
-  // Build search terms from both the plural-stemmed form AND the un-stemmed
-  // normalized form. This ensures that a haystack tag stored verbatim (e.g. the
-  // tag "hobbies") is still matched when a term like "hobbies" is queried:
-  // simplePluralStem(normalizeForCompare("hobbies")) → "hobby", but the tag
-  // "hobbies" in the DB won't match LIKE %hobby%. Including the un-stemmed
-  // normalized form "hobbies" adds a second LIKE %hobbies% that does match.
-  const stemmed = terms.map((t) => simplePluralStem(normalizeForCompare(t))).filter((s) => s.length >= 2);
-  const unstemmed = terms.map((t) => normalizeForMatch(t)).filter((s) => s.length >= 2);
-  const stems = [...new Set([...stemmed, ...unstemmed])];
-  if (stems.length === 0) return [];
+  const probes = buildSearchProbes(terms);
+  if (probes.length === 0) return [];
 
   const params: unknown[] = [locationId, userId];
   const orClauses: string[] = [];
-  for (const stem of stems) {
-    // Pre-escape SQL LIKE wildcards so user-controlled stems can't act as patterns.
-    const like = `%${stem.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
+  for (const probe of probes) {
+    // Pre-escape SQL LIKE wildcards so user-controlled probes can't act as patterns.
+    const like = `%${probe.replace(/[%_\\]/g, (c) => `\\${c}`)}%`;
     const idx = params.length + 1;
     params.push(like);
     orClauses.push(
@@ -121,7 +116,7 @@ export async function findLiteralMatches(
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
-      AND (b.visibility = 'location' OR b.created_by = $2)
+      AND ${VISIBILITY_FILTER}
       AND (${orClauses.join(' OR ')})
     ORDER BY b.updated_at DESC
     LIMIT ${MAX_CANDIDATES}
@@ -129,7 +124,7 @@ export async function findLiteralMatches(
   const result = await query<RawRow>(sql, params);
   return result.rows.map((r) => {
     const candidate = rowToCandidate(r, '');
-    candidate.match_hint = describeMatchHint(candidate, stems);
+    candidate.match_hint = describeMatchHint(candidate, probes);
     return candidate;
   });
 }
@@ -153,11 +148,11 @@ export async function findPinnedMatches(locationId: string, userId: string): Pro
   // Reuses the `pb` LEFT JOIN already in CANDIDATE_FROM — filter on it
   // instead of joining the same table again.
   const sql = `
-    SELECT ${candidateSelect()}, pb.position AS pin_position
+    SELECT ${candidateSelect()}
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
-      AND (b.visibility = 'location' OR b.created_by = $2)
+      AND ${VISIBILITY_FILTER}
       AND pb.user_id IS NOT NULL
     ORDER BY pb.position
     LIMIT ${MAX_CANDIDATES}
@@ -187,7 +182,7 @@ export async function findCheckedOutMatches(locationId: string, userId: string):
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
-      AND (b.visibility = 'location' OR b.created_by = $2)
+      AND ${VISIBILITY_FILTER}
       AND EXISTS (
         SELECT 1 FROM item_checkouts ic
         WHERE ic.origin_bin_id = b.id AND ic.returned_at IS NULL
@@ -205,7 +200,7 @@ export async function findTrashedMatches(locationId: string, userId: string): Pr
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NOT NULL
-      AND (b.visibility = 'location' OR b.created_by = $2)
+      AND ${VISIBILITY_FILTER}
     ORDER BY b.deleted_at DESC
     LIMIT ${MAX_CANDIDATES}
   `;
@@ -225,7 +220,7 @@ export async function findNearMissBins(
     FROM ${CANDIDATE_FROM}
     WHERE b.location_id = $1
       AND b.deleted_at IS NULL
-      AND (b.visibility = 'location' OR b.created_by = $2)
+      AND ${VISIBILITY_FILTER}
       AND ${d.fuzzyMatch('b.name', '$3')}
     ORDER BY b.updated_at DESC
     LIMIT 3

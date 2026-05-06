@@ -50,3 +50,18 @@ export function tokensForMatch(s: string): string[] {
   const n = normalizeForCompare(s);
   return n ? n.split(' ') : [];
 }
+
+/**
+ * Build the literal substring probes for a list of search terms. Returns BOTH
+ * the plural-stemmed form AND the un-stemmed normalized form per term, deduped.
+ *
+ * The two-form approach handles English's asymmetric plural matching: a stem
+ * like "hobby" is not a substring of the plural "hobbies" (positions 0-4 are
+ * "hobbi", not "hobby"), so a query for "hobbies" must search for both the
+ * stemmed "hobby" AND the literal "hobbies" to hit every haystack form.
+ */
+export function buildSearchProbes(terms: string[]): string[] {
+  const stemmed = terms.map((t) => simplePluralStem(normalizeForCompare(t))).filter((s) => s.length >= 2);
+  const unstemmed = terms.map(normalizeForMatch).filter((s) => s.length >= 2);
+  return [...new Set([...stemmed, ...unstemmed])];
+}
