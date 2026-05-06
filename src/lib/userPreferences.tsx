@@ -24,6 +24,11 @@ export interface UserPreferences {
   usage_tracking_modify: boolean;
   usage_granularity: 'daily' | 'weekly' | 'monthly';
   dismissed_upgrade_prompts: string[];
+  // Onboarding checklist (added 2026-05-06)
+  checklist_eligible: boolean;
+  checklist_dismissed_at: string | null;
+  ai_asked_at: string | null;
+  print_visited_at: string | null;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -49,6 +54,10 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   usage_tracking_modify: true,
   usage_granularity: 'daily',
   dismissed_upgrade_prompts: [],
+  checklist_eligible: false,
+  checklist_dismissed_at: null,
+  ai_asked_at: null,
+  print_visited_at: null,
 };
 
 const PREFERENCES_EVENT = 'user-preferences-changed';
