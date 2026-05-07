@@ -70,7 +70,12 @@ export function BinItemGroup({
             expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
           )}
         >
-          <div className="min-h-0 overflow-hidden">
+          <div
+            ref={(el) => {
+              if (el) el.inert = !expanded;
+            }}
+            className="min-h-0 overflow-hidden"
+          >
             <ul className="border-t border-[var(--border-subtle)]">
               {match.items.map((item) => (
                 <li key={item.id}>

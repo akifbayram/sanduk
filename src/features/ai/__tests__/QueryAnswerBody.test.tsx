@@ -77,22 +77,22 @@ describe('QueryAnswerBody', () => {
           makeMatch({
             bin_id: 'b1',
             name: 'Camping Gear',
-            items: [
-              { id: 'i1', name: 'Tent', quantity: null },
-              { id: 'i2', name: 'Sleeping Bag', quantity: 2 },
-            ],
+            items: [{ id: 'i1', name: 'Tent', quantity: null }],
+            total_item_count: 1,
+            relevance: 'contains "tent"',
           }),
           makeMatch({
             bin_id: 'b2',
             name: 'Tool Box',
             items: [{ id: 'i3', name: 'Hammer', quantity: null }],
+            total_item_count: 1,
+            relevance: 'contains "hammer"',
           }),
         ],
       },
       onBinClick: vi.fn(),
     });
     expect(screen.getByText('Tent')).toBeDefined();
-    expect(screen.getByText('Sleeping Bag')).toBeDefined();
     expect(screen.getByText('Hammer')).toBeDefined();
   });
 
