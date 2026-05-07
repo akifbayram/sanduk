@@ -68,6 +68,7 @@ export function BinGroupHeader({
           type="button"
           onClick={onOpen}
           aria-label={`Open ${name}`}
+          data-trashed={isTrashed ? 'true' : undefined}
           className="flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--bg-active)] transition-colors rounded-tl-[var(--radius-sm)]"
         >
           {iconNode}
