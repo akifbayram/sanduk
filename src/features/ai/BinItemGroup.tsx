@@ -64,6 +64,7 @@ export function BinItemGroup({
       {display.mode === 'inline-disclosure' && (
         <section
           id={itemsId}
+          aria-label={`Items in ${match.name}`}
           className={cn(
             'grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none',
             expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
