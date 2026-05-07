@@ -34,6 +34,26 @@ describe('BinGroupHeader', () => {
     expect(container.querySelector('[data-trashed="true"]')).toBeTruthy();
   });
 
+  it('applies trashed styling on the wrapper when isTrashed and interactive', () => {
+    const { container } = render(
+      <BinGroupHeader
+        name="X"
+        areaName=""
+        icon=""
+        color="#000"
+        isTrashed
+        onOpen={vi.fn()}
+        interactive
+        trailing={
+          <button type="button" aria-label="toggle items">
+            tog
+          </button>
+        }
+      />,
+    );
+    expect(container.querySelector('[data-trashed="true"]')).toBeTruthy();
+  });
+
   it('renders trailing element when provided (single-button mode)', () => {
     render(
       <BinGroupHeader
