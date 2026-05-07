@@ -8,6 +8,7 @@ describe('parseRelevanceKind', () => {
     ['contains "x with spaces"', 'item'],
     ['name contains "kitchen"', 'name'],
     ['tagged "garage"', 'tag'],
+    ['tag contains "garage"', 'unknown'],
     ['pinned', 'metadata'],
     ['private', 'metadata'],
     ['in trash', 'metadata'],

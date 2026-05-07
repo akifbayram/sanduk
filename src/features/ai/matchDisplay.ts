@@ -52,6 +52,7 @@ export function getMatchDisplay(match: QueryMatch): MatchDisplay {
   return {
     mode: 'inline-disclosure',
     defaultExpanded: kind === 'item' && itemsCount === 1,
+    // Pill shows MATCHED item count; BinItemGroup's "+N more" footer covers the delta to total.
     countLabel: pluralize(itemsCount, 'item'),
   };
 }
