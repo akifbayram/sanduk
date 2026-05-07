@@ -9,7 +9,7 @@ beforeEach(() => { app = createApp(); });
 afterEach(() => { delete process.env.AI_DETERMINISTIC_MATCH; });
 
 describe('AI_DETERMINISTIC_MATCH flag', () => {
-  it('legacy path is used when the flag is unset (no AI mock — just verifies the route still accepts the request)', async () => {
+  it('planner path is used by default (no AI mock — just verifies the route still accepts the request)', async () => {
     const { token } = await createTestUser(app);
     const loc = await createTestLocation(app, token);
     await createTestBin(app, token, loc.id, { name: 'Battery Bin' });
