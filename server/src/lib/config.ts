@@ -250,10 +250,10 @@ export const config = Object.freeze({
   aiHistoryMaxTurns: clamp(parseInt(process.env.AI_HISTORY_MAX_TURNS || '10', 10), 1, 100, 10),
   aiHistoryMaxTurnChars: clamp(parseInt(process.env.AI_HISTORY_MAX_TURN_CHARS || '4096', 10), 100, 100000, 4096),
   aiHistoryMaxTotalChars: clamp(parseInt(process.env.AI_HISTORY_MAX_TOTAL_CHARS || '32768', 10), 100, 1_000_000, 32768),
-  // Feature flag: when true, the inventory query path uses deterministic
-  // server-side bin matching and reduces the LLM to a formatter. Default off
-  // — flip on per-environment to validate before retiring the legacy path.
-  aiDeterministicMatch: parseBool(process.env.AI_DETERMINISTIC_MATCH, false),
+  // Inventory query: when true (default), uses LLM planner + SQL executor.
+  // When false, falls back to legacy LLM-as-matcher. Disable for providers
+  // without structured-output support (some Ollama models).
+  aiDeterministicMatch: parseBool(process.env.AI_DETERMINISTIC_MATCH, true),
 
   // Backup
   backupEnabled: parseBool(process.env.BACKUP_ENABLED, false),
