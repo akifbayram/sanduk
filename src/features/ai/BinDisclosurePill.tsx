@@ -8,6 +8,7 @@ interface BinDisclosurePillProps {
   expanded?: boolean;
   controlsId?: string;
   binName?: string;
+  /** Called when the button is clicked. Caller is responsible for stopPropagation if the pill is nested under another clickable region. */
   onToggle?: (e: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -44,7 +45,7 @@ export function BinDisclosurePill({
       aria-label={label}
       className={cn(
         PILL_CONTENT,
-        'min-h-[40px] min-w-[44px] justify-center hover:bg-[var(--bg-active)] transition-colors',
+        'min-h-[44px] min-w-[44px] justify-center hover:bg-[var(--bg-active)] transition-colors',
         focusRing,
       )}
     >

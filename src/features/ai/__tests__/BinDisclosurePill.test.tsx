@@ -51,6 +51,7 @@ describe('BinDisclosurePill', () => {
         onToggle={onToggle}
       />,
     );
+    expect(screen.getByRole('button').getAttribute('aria-label')).toBe('Show 3 items');
     fireEvent.click(screen.getByRole('button'));
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
