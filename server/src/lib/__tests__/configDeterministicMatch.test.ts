@@ -14,16 +14,16 @@ describe('config.aiDeterministicMatch', () => {
     await initialize();
   });
 
-  it('defaults to false when env var unset', async () => {
+  it('defaults to true when env var unset', async () => {
     delete process.env.AI_DETERMINISTIC_MATCH;
     const { config } = await import('../config.js');
-    expect(config.aiDeterministicMatch).toBe(false);
+    expect(config.aiDeterministicMatch).toBe(true);
   });
 
-  it('is true when AI_DETERMINISTIC_MATCH=true', async () => {
-    process.env.AI_DETERMINISTIC_MATCH = 'true';
+  it('is false when AI_DETERMINISTIC_MATCH=false', async () => {
+    process.env.AI_DETERMINISTIC_MATCH = 'false';
     const { config } = await import('../config.js');
-    expect(config.aiDeterministicMatch).toBe(true);
+    expect(config.aiDeterministicMatch).toBe(false);
     delete process.env.AI_DETERMINISTIC_MATCH;
   });
 });
