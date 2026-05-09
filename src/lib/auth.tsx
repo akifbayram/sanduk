@@ -13,7 +13,13 @@ interface AuthState {
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string, inviteCode?: string) => Promise<void>;
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+    inviteCode?: string,
+    consent?: { acceptedTos: boolean; acceptedPrivacy: boolean; marketingOptIn?: boolean },
+  ) => Promise<void>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
   setActiveLocationId: (id: string | null) => void;
@@ -134,9 +140,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const register = useCallback(async (email: string, password: string, displayName: string, inviteCode?: string) => {
-    const body: Record<string, string> = { email, password, displayName };
+  const register = useCallback(async (
+    email: string,
+    password: string,
+    displayName: string,
+    inviteCode?: string,
+    consent?: { acceptedTos: boolean; acceptedPrivacy: boolean; marketingOptIn?: boolean },
+  ) => {
+    const body: Record<string, unknown> = { email, password, displayName };
     if (inviteCode) body.inviteCode = inviteCode;
+    if (consent) {
+      body.acceptedTos = consent.acceptedTos;
+      body.acceptedPrivacy = consent.acceptedPrivacy;
+      if (typeof consent.marketingOptIn === 'boolean') body.marketingOptIn = consent.marketingOptIn;
+    }
     const data = await apiFetch<{ token: string; user: User; activeLocationId?: string }>('/api/auth/register', {
       method: 'POST',
       body,

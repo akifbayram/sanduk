@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordChecklist } from '@/components/ui/password-checklist';
@@ -37,6 +38,8 @@ export function RegisterPage() {
     viewerCount: number;
   } | null>(null);
   const [inviteInvalid, setInviteInvalid] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const markTouched = useCallback((field: string) => setTouched((t) => ({ ...t, [field]: true })), []);
 
@@ -153,7 +156,13 @@ export function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register(email.trim(), password, displayName.trim(), inviteCode.trim() || undefined);
+      await register(
+        email.trim(),
+        password,
+        displayName.trim(),
+        inviteCode.trim() || undefined,
+        selfHosted ? undefined : { acceptedTos: tosAccepted, acceptedPrivacy: tosAccepted, marketingOptIn },
+      );
       navigate('/');
     } catch (err) {
       showToast({
@@ -365,22 +374,44 @@ export function RegisterPage() {
                   </fieldset>
 
                   <div className="mt-6 space-y-4">
+                    {!selfHosted && (
+                      <div className="space-y-3 pt-2 pb-4">
+                        <label htmlFor="reg-consent-tos" className="flex items-start gap-3 text-[13px] text-[var(--text-primary)] leading-relaxed cursor-pointer">
+                          <Checkbox
+                            id="reg-consent-tos"
+                            checked={tosAccepted}
+                            onCheckedChange={(v) => setTosAccepted(Boolean(v))}
+                            aria-label="Accept Terms of Service and Privacy Policy"
+                          />
+                          <span>
+                            I agree to the{' '}
+                            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Terms of Service</Link>
+                            {' '}and{' '}
+                            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Privacy Policy</Link>.
+                          </span>
+                        </label>
+
+                        {authStatus.marketingOptInVisible && (
+                          <label htmlFor="reg-consent-marketing" className="flex items-start gap-3 text-[13px] text-[var(--text-primary)] leading-relaxed cursor-pointer">
+                            <Checkbox
+                              id="reg-consent-marketing"
+                              checked={marketingOptIn}
+                              onCheckedChange={(v) => setMarketingOptIn(Boolean(v))}
+                              aria-label="Send me product updates"
+                            />
+                            <span>Send me occasional product updates. (Optional)</span>
+                          </label>
+                        )}
+                      </div>
+                    )}
                     <Button
                       type="submit"
-                      disabled={!email.trim() || !displayName.trim() || !password || !confirmPassword || loading}
+                      disabled={!email.trim() || !displayName.trim() || !password || !confirmPassword || loading || (!selfHosted && !tosAccepted)}
                       fullWidth
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
                       {loading ? 'Creating account...' : 'Create Account'}
                     </Button>
-                    {!selfHosted && (
-                      <p className="text-center text-[12px] text-[var(--text-tertiary)] leading-relaxed">
-                        By creating an account, you agree to the{' '}
-                        <Link to="/terms" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Terms of Service</Link>
-                        {' '}and{' '}
-                        <Link to="/privacy" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Privacy Policy</Link>.
-                      </p>
-                    )}
                   </div>
                 </form>
               </CardContent>
