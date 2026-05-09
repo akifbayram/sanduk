@@ -18,7 +18,7 @@
     "@ai-sdk/google": "^3.0.36",
     "@ai-sdk/openai": "^3.0.39",
     "@ai-sdk/openai-compatible": "^2.0.33",
-    "@aws-sdk/client-s3": "^3.1018.0",
+    "@aws-sdk/client-s3": "^3.1045.0",
     "@types/compression": "^1.8.1",
     "ai": "^6.0.108",
     "archiver": "^7.0.1",
@@ -28,7 +28,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.21.0",
-    "express-rate-limit": "^8.3.1",
+    "express-rate-limit": "^8.5.1",
     "fflate": "^0.8.2",
     "file-type": "^22.0.0",
     "jose": "^6.2.2",
@@ -40,7 +40,7 @@
     "resend": "^6.9.4",
     "sharp": "^0.34.5",
     "undici": "^8.0.2",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
