@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import accountRouter from './account.js';
+import completeConsentRouter from './completeConsent.js';
 import invitePreviewRouter from './invitePreview.js';
 import oauthRouter from './oauth.js';
 import passwordResetRouter from './passwordReset.js';
@@ -21,6 +22,7 @@ router.use(registerRouter);
 router.use(sessionRouter);
 router.use(profileRouter);
 router.use(passwordResetRouter);
+router.use(completeConsentRouter);
 router.use(accountRouter);
 router.use(oauthRouter);
 
