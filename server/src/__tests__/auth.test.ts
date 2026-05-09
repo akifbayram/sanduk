@@ -1061,3 +1061,23 @@ describe('POST /api/auth/register (deletion lifecycle)', () => {
     expect(res.body.error).toBe('CONFLICT');
   });
 });
+
+describe('GET /api/auth/status — consent version fields', () => {
+  it('returns tosVersion, privacyVersion, marketingOptInVisible', async () => {
+    const res = await request(app).get('/api/auth/status');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('tosVersion');
+    expect(res.body).toHaveProperty('privacyVersion');
+    expect(res.body).toHaveProperty('marketingOptInVisible');
+    expect(typeof res.body.marketingOptInVisible).toBe('boolean');
+  });
+
+  it('returns null versions on self-hosted', async () => {
+    const res = await request(app).get('/api/auth/status');
+
+    // Default test environment has SELF_HOSTED=true.
+    expect(res.body.tosVersion).toBeNull();
+    expect(res.body.privacyVersion).toBeNull();
+  });
+});

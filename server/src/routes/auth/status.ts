@@ -4,6 +4,7 @@ import { asyncHandler } from '../../lib/asyncHandler.js';
 import { config } from '../../lib/config.js';
 import { setAccessTokenCookie, setRefreshTokenCookie } from '../../lib/cookies.js';
 import { ForbiddenError } from '../../lib/httpErrors.js';
+import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/legalVersions.js';
 import { getOAuthProviders } from '../../lib/oauth.js';
 import { queryMaybeOne, queryOne } from '../../lib/queryHelpers.js';
 import { createRefreshToken } from '../../lib/refreshTokens.js';
@@ -24,6 +25,9 @@ router.get('/status', async (_req, res) => {
     selfHosted: config.selfHosted,
     attachmentsEnabled: config.attachmentsEnabled,
     oauthProviders: getOAuthProviders(),
+    tosVersion: config.selfHosted ? null : CURRENT_TOS_VERSION,
+    privacyVersion: config.selfHosted ? null : CURRENT_PRIVACY_VERSION,
+    marketingOptInVisible: config.selfHosted ? false : config.marketingOptInVisible,
   };
   if (config.qrPayloadMode === 'url' && config.baseUrl) {
     body.baseUrl = config.baseUrl;
