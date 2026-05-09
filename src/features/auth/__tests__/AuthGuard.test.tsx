@@ -5,6 +5,21 @@ import { useAuth } from '@/lib/auth';
 import { AuthGuard } from '../AuthGuard';
 
 vi.mock('@/lib/auth', () => ({ useAuth: vi.fn() }));
+vi.mock('@/lib/qrConfig', () => ({
+  isSelfHostedInstance: () => true,
+  useAuthStatusConfig: () => ({
+    config: {
+      registrationMode: 'open',
+      registrationEnabled: true,
+      oauthProviders: [],
+      demoMode: false,
+      tosVersion: null,
+      privacyVersion: null,
+      marketingOptInVisible: false,
+    },
+    loaded: true,
+  }),
+}));
 
 const mockedUseAuth = vi.mocked(useAuth);
 
