@@ -1,18 +1,16 @@
 import { Router } from 'express';
-import { query } from '../../db.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { type ConsentSource, recordConsent } from '../../lib/consent.js';
 import { ValidationError } from '../../lib/httpErrors.js';
+import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/legalVersions.js';
 import { isSelfHosted } from '../../lib/planGate.js';
 import { authenticate } from '../../middleware/auth.js';
 
 const router = Router();
-const VALID_SOURCES: ConsentSource[] = ['oauth_completion', 'reaccept_modal', 'backfill'];
+const VALID_SOURCES: readonly ConsentSource[] = ['oauth_completion', 'reaccept_modal', 'backfill'];
 
-// POST /api/auth/complete-consent — captures ToS + Privacy acceptance after
-// initial signup (used by the OAuth completion interstitial and the
-// re-acceptance modal). Body: { acceptedTos: true, acceptedPrivacy: true,
-// marketingOptIn?: boolean }. Source param is server-trusted (query string).
+// Source comes from the query string so the OAuth completion URL is
+// self-explanatory in logs; values are server-validated against VALID_SOURCES.
 router.post('/complete-consent', authenticate, asyncHandler(async (req, res) => {
   if (isSelfHosted()) {
     throw new ValidationError('Consent capture is not available on self-hosted instances.');
@@ -27,22 +25,17 @@ router.post('/complete-consent', authenticate, asyncHandler(async (req, res) => 
   }
 
   const sourceParam = String(req.query.source ?? '');
-  const source: ConsentSource = (VALID_SOURCES.includes(sourceParam as ConsentSource)
-    ? sourceParam
-    : 'reaccept_modal') as ConsentSource;
+  const source: ConsentSource = VALID_SOURCES.includes(sourceParam as ConsentSource)
+    ? (sourceParam as ConsentSource)
+    : 'reaccept_modal';
 
   await recordConsent(req.user!.id, source, req, { marketingOptIn });
 
-  // Return the refreshed user fields the client needs to clear the redirect rule.
-  const result = await query<{ current_tos_version: string | null; current_privacy_version: string | null; marketing_opt_in: number | boolean }>(
-    'SELECT current_tos_version, current_privacy_version, marketing_opt_in FROM users WHERE id = $1',
-    [req.user!.id],
-  );
-  const u = result.rows[0];
+  // The client refetches /me right after this endpoint resolves, so we just
+  // confirm what the recorded versions are and skip a redundant SELECT.
   res.json({
-    currentTosVersion: u.current_tos_version || null,
-    currentPrivacyVersion: u.current_privacy_version || null,
-    marketingOptIn: !!u.marketing_opt_in,
+    currentTosVersion: CURRENT_TOS_VERSION,
+    currentPrivacyVersion: CURRENT_PRIVACY_VERSION,
   });
 }));
 

@@ -6,11 +6,7 @@ import { createApp } from '../index.js';
 import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../lib/legalVersions.js';
 import * as planGate from '../lib/planGate.js';
 
-// `config` in the real module is Object.freeze'd, so we can't mutate
-// `config.selfHosted` between tests. The register handler reads cloud
-// vs self-hosted through `isSelfHosted()` from `planGate`, so we
-// stub that function directly via vi.spyOn — same pattern as
-// passwordReset.test.ts.
+// `config` is Object.freeze'd; spy on isSelfHosted() instead of mutating it.
 
 let app: Express;
 

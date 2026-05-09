@@ -4,7 +4,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordChecklist } from '@/components/ui/password-checklist';
@@ -16,6 +15,7 @@ import { allChecksPassing, computePasswordChecks } from '@/lib/passwordStrength'
 import { isSelfHostedInstance, useAuthStatusConfig } from '@/lib/qrConfig';
 import { cycleThemePreference, useTheme } from '@/lib/theme';
 import { cn, EMAIL_REGEX, focusRing, getErrorMessage } from '@/lib/utils';
+import { ConsentCheckboxes } from './ConsentCheckboxes';
 import { SocialButtons, SocialDivider } from './SocialButtons';
 
 export function RegisterPage() {
@@ -376,32 +376,14 @@ export function RegisterPage() {
                   <div className="mt-6 space-y-4">
                     {!selfHosted && (
                       <div className="space-y-3 pt-2 pb-4">
-                        <label htmlFor="reg-consent-tos" className="flex items-start gap-3 text-[13px] text-[var(--text-primary)] leading-relaxed cursor-pointer">
-                          <Checkbox
-                            id="reg-consent-tos"
-                            checked={tosAccepted}
-                            onCheckedChange={(v) => setTosAccepted(Boolean(v))}
-                            aria-label="Accept Terms of Service and Privacy Policy"
-                          />
-                          <span>
-                            I agree to the{' '}
-                            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Terms of Service</Link>
-                            {' '}and{' '}
-                            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Privacy Policy</Link>.
-                          </span>
-                        </label>
-
-                        {authStatus.marketingOptInVisible && (
-                          <label htmlFor="reg-consent-marketing" className="flex items-start gap-3 text-[13px] text-[var(--text-primary)] leading-relaxed cursor-pointer">
-                            <Checkbox
-                              id="reg-consent-marketing"
-                              checked={marketingOptIn}
-                              onCheckedChange={(v) => setMarketingOptIn(Boolean(v))}
-                              aria-label="Send me product updates"
-                            />
-                            <span>Send me occasional product updates. (Optional)</span>
-                          </label>
-                        )}
+                        <ConsentCheckboxes
+                          tosAccepted={tosAccepted}
+                          onTosChange={setTosAccepted}
+                          marketingOptIn={marketingOptIn}
+                          onMarketingChange={setMarketingOptIn}
+                          marketingVisible={authStatus.marketingOptInVisible}
+                          idPrefix="reg"
+                        />
                       </div>
                     )}
                     <Button

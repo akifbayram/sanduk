@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/toast';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAuthStatusConfig } from '@/lib/qrConfig';
 import { cn, focusRing, getErrorMessage } from '@/lib/utils';
+import { ConsentCheckboxes } from './ConsentCheckboxes';
 
 export function CompleteSignupPage() {
   const { user, refreshSession, logout } = useAuth();
@@ -20,11 +20,7 @@ export function CompleteSignupPage() {
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const isReacceptance = useMemo(
-    () => Boolean(user?.currentTosVersion) || Boolean(user?.currentPrivacyVersion),
-    [user?.currentTosVersion, user?.currentPrivacyVersion],
-  );
-
+  const isReacceptance = Boolean(user?.currentTosVersion) || Boolean(user?.currentPrivacyVersion);
   const heading = isReacceptance
     ? "We've updated our Terms of Service and Privacy Policy"
     : 'Almost done — confirm to continue';
@@ -38,7 +34,7 @@ export function CompleteSignupPage() {
     try {
       await apiFetch('/api/auth/complete-consent?source=oauth_completion', {
         method: 'POST',
-        body: { acceptedTos: true, acceptedPrivacy: true, marketingOptIn: marketingOptIn || undefined },
+        body: { acceptedTos: true, acceptedPrivacy: true, marketingOptIn },
       });
       await refreshSession();
       navigate('/');
@@ -70,38 +66,14 @@ export function CompleteSignupPage() {
 
         <Card>
           <CardContent className="py-6 space-y-4">
-            <label
-              htmlFor="consent-tos"
-              className={cn('flex items-start gap-3 text-[14px] text-[var(--text-primary)] cursor-pointer')}
-            >
-              <Checkbox
-                id="consent-tos"
-                checked={tosAccepted}
-                onCheckedChange={(v) => setTosAccepted(Boolean(v))}
-                aria-label="Accept Terms of Service and Privacy Policy"
-              />
-              <span>
-                I agree to the{' '}
-                <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Terms of Service</Link>
-                {' '}and{' '}
-                <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Privacy Policy</Link>.
-              </span>
-            </label>
-
-            {authStatus.marketingOptInVisible && (
-              <label
-                htmlFor="consent-marketing"
-                className="flex items-start gap-3 text-[14px] text-[var(--text-primary)] cursor-pointer"
-              >
-                <Checkbox
-                  id="consent-marketing"
-                  checked={marketingOptIn}
-                  onCheckedChange={(v) => setMarketingOptIn(Boolean(v))}
-                  aria-label="Send me product updates"
-                />
-                <span>Send me occasional product updates. (Optional)</span>
-              </label>
-            )}
+            <ConsentCheckboxes
+              tosAccepted={tosAccepted}
+              onTosChange={setTosAccepted}
+              marketingOptIn={marketingOptIn}
+              onMarketingChange={setMarketingOptIn}
+              marketingVisible={authStatus.marketingOptInVisible}
+              idPrefix="complete"
+            />
 
             <Button
               type="button"

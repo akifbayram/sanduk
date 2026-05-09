@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import type Database from 'better-sqlite3';
-import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../../lib/legalVersions.js';
+import { LEGAL_DOCUMENTS } from '../../lib/legalVersions.js';
 import type { Migration } from './types.js';
 
 const SQLITE_ALTER_STATEMENTS = [
@@ -19,22 +19,7 @@ const POSTGRES_ALTER_STATEMENTS = [
   'ALTER TABLE users ADD COLUMN IF NOT EXISTS marketing_opt_out_at TEXT',
 ];
 
-const SQLITE_CREATE_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS user_consents (
-    id          TEXT PRIMARY KEY,
-    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    document    TEXT NOT NULL,
-    version     TEXT NOT NULL,
-    accepted_at TEXT NOT NULL,
-    ip          TEXT,
-    user_agent  TEXT,
-    source      TEXT NOT NULL,
-    UNIQUE(user_id, document, version)
-  )`,
-  `CREATE INDEX IF NOT EXISTS idx_user_consents_user_id ON user_consents(user_id)`,
-];
-
-const POSTGRES_CREATE_STATEMENTS = [
+const CREATE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS user_consents (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -63,7 +48,7 @@ export const userConsent: Migration = {
   name: '0013_user_consent',
   sqlite(db) {
     for (const sql of SQLITE_ALTER_STATEMENTS) safeAlterSqlite(db, sql);
-    for (const sql of SQLITE_CREATE_STATEMENTS) db.prepare(sql).run();
+    for (const sql of CREATE_STATEMENTS) db.prepare(sql).run();
 
     // Backfill: every user with a NULL current_tos_version gets one row each
     // for tos + privacy at the current version, source='backfill', accepted_at
@@ -78,6 +63,7 @@ export const userConsent: Migration = {
        (id, user_id, document, version, accepted_at, ip, user_agent, source)
        VALUES (?, ?, ?, ?, ?, NULL, NULL, 'backfill')`,
     );
+    const [tosVersion, privacyVersion] = LEGAL_DOCUMENTS.map(([, v]) => v);
     const setUser = db.prepare(
       `UPDATE users SET current_tos_version = ?, current_privacy_version = ?
         WHERE id = ?`,
@@ -85,9 +71,10 @@ export const userConsent: Migration = {
 
     const tx = db.transaction(() => {
       for (const r of rows) {
-        insert.run(crypto.randomUUID(), r.id, 'tos', CURRENT_TOS_VERSION, r.created_at);
-        insert.run(crypto.randomUUID(), r.id, 'privacy', CURRENT_PRIVACY_VERSION, r.created_at);
-        setUser.run(CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION, r.id);
+        for (const [document, version] of LEGAL_DOCUMENTS) {
+          insert.run(crypto.randomUUID(), r.id, document, version, r.created_at);
+        }
+        setUser.run(tosVersion, privacyVersion, r.id);
       }
     });
     tx();
@@ -96,7 +83,7 @@ export const userConsent: Migration = {
     for (const sql of POSTGRES_ALTER_STATEMENTS) {
       await pool.query(sql);
     }
-    for (const sql of POSTGRES_CREATE_STATEMENTS) {
+    for (const sql of CREATE_STATEMENTS) {
       await pool.query(sql);
     }
 
@@ -105,25 +92,22 @@ export const userConsent: Migration = {
     );
     if (rows.rowCount === 0) return;
 
+    const [tosVersion, privacyVersion] = LEGAL_DOCUMENTS.map(([, v]) => v);
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       for (const r of rows.rows) {
-        await client.query(
-          `INSERT INTO user_consents (id, user_id, document, version, accepted_at, ip, user_agent, source)
-           VALUES ($1, $2, 'tos',     $3, $4, NULL, NULL, 'backfill')
-           ON CONFLICT (user_id, document, version) DO NOTHING`,
-          [crypto.randomUUID(), r.id, CURRENT_TOS_VERSION, r.created_at],
-        );
-        await client.query(
-          `INSERT INTO user_consents (id, user_id, document, version, accepted_at, ip, user_agent, source)
-           VALUES ($1, $2, 'privacy', $3, $4, NULL, NULL, 'backfill')
-           ON CONFLICT (user_id, document, version) DO NOTHING`,
-          [crypto.randomUUID(), r.id, CURRENT_PRIVACY_VERSION, r.created_at],
-        );
+        for (const [document, version] of LEGAL_DOCUMENTS) {
+          await client.query(
+            `INSERT INTO user_consents (id, user_id, document, version, accepted_at, ip, user_agent, source)
+             VALUES ($1, $2, $3, $4, $5, NULL, NULL, 'backfill')
+             ON CONFLICT (user_id, document, version) DO NOTHING`,
+            [crypto.randomUUID(), r.id, document, version, r.created_at],
+          );
+        }
         await client.query(
           `UPDATE users SET current_tos_version = $1, current_privacy_version = $2 WHERE id = $3`,
-          [CURRENT_TOS_VERSION, CURRENT_PRIVACY_VERSION, r.id],
+          [tosVersion, privacyVersion, r.id],
         );
       }
       await client.query('COMMIT');

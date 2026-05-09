@@ -1,16 +1,15 @@
 import type { Request } from 'express';
 import { d, generateUuid, query } from '../db.js';
 import { config } from './config.js';
-import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from './legalVersions.js';
+import {
+  CURRENT_PRIVACY_VERSION,
+  CURRENT_TOS_VERSION,
+  LEGAL_DOCUMENTS,
+} from './legalVersions.js';
 
 export type ConsentSource = 'signup' | 'oauth_completion' | 'reaccept_modal' | 'backfill';
 
 export interface RecordConsentOptions {
-  /**
-   * If undefined: marketing_opt_in is left unchanged.
-   * If true: opt user in (only honored when MARKETING_OPT_IN_VISIBLE is true).
-   * If false: opt user out (always honored — users can always revoke).
-   */
   marketingOptIn?: boolean;
 }
 
@@ -39,24 +38,17 @@ export async function recordConsent(
      VALUES ($1, $2, $3, $4, ${d.now()}, $5, $6, $7)`,
   );
 
-  await query(insertConsent, [
-    generateUuid(),
-    userId,
-    'tos',
-    CURRENT_TOS_VERSION,
-    ip || null,
-    userAgent || null,
-    source,
-  ]);
-  await query(insertConsent, [
-    generateUuid(),
-    userId,
-    'privacy',
-    CURRENT_PRIVACY_VERSION,
-    ip || null,
-    userAgent || null,
-    source,
-  ]);
+  for (const [document, version] of LEGAL_DOCUMENTS) {
+    await query(insertConsent, [
+      generateUuid(),
+      userId,
+      document,
+      version,
+      ip || null,
+      userAgent || null,
+      source,
+    ]);
+  }
 
   await query(
     `UPDATE users

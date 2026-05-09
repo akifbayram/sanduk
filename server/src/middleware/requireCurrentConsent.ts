@@ -1,18 +1,11 @@
 import type { NextFunction, Request, Response } from 'express';
 import { query } from '../db.js';
 import { config } from '../lib/config.js';
-import { CURRENT_PRIVACY_VERSION, CURRENT_TOS_VERSION } from '../lib/legalVersions.js';
-
-declare global {
-  namespace Express {
-    interface Request {
-      // Populated lazily by this middleware (or by a future req-augmenting
-      // middleware) so other code paths can read consent state without a
-      // separate DB hit.
-      consentVersions?: { tos: string | null; privacy: string | null };
-    }
-  }
-}
+import {
+  CONSENT_REQUIRED_CODE,
+  CURRENT_PRIVACY_VERSION,
+  CURRENT_TOS_VERSION,
+} from '../lib/legalVersions.js';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -34,7 +27,8 @@ export async function requireCurrentConsent(
   if (SAFE_METHODS.has(req.method)) return next();
   if (!req.user) return next(); // requireAuth runs separately and will reject
 
-  // Allow tests / upstream middleware to inject versions directly on req.user.
+  // Test seam: tests can pre-populate currentTosVersion / currentPrivacyVersion
+  // on req.user to skip the DB hit. Production code never sets these fields.
   const userAny = req.user as unknown as Record<string, unknown>;
   let tosVersion = (userAny.currentTosVersion as string | null | undefined) ?? null;
   let privacyVersion = (userAny.currentPrivacyVersion as string | null | undefined) ?? null;
@@ -48,14 +42,12 @@ export async function requireCurrentConsent(
     privacyVersion = result.rows[0]?.current_privacy_version ?? null;
   }
 
-  req.consentVersions = { tos: tosVersion, privacy: privacyVersion };
-
   if (tosVersion === CURRENT_TOS_VERSION && privacyVersion === CURRENT_PRIVACY_VERSION) {
     return next();
   }
 
   res.status(403).json({
-    error: 'CONSENT_REQUIRED',
+    error: CONSENT_REQUIRED_CODE,
     message: 'You must accept the current Terms of Service and Privacy Policy to continue.',
   });
 }

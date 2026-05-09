@@ -8,11 +8,6 @@ import { createLogger } from '../lib/logger.js';
 import { authenticate } from '../middleware/auth.js';
 import { requirePro } from '../middleware/requirePlan.js';
 
-// API-key creation is implicitly gated by the global requireCurrentConsent
-// middleware (mounted in server/src/index.ts on /api with /auth/ exempted).
-// Stale-consent users cannot mint new keys; existing keys continue to work
-// because the middleware bypasses requests authenticated via API key.
-
 const log = createLogger('apiKeys');
 const router = Router();
 router.use(authenticate);

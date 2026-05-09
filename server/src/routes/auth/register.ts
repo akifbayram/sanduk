@@ -27,8 +27,6 @@ router.post('/register', asyncHandler(async (req, res) => {
 
   const { email, password, displayName, inviteCode, acceptedTos, acceptedPrivacy, marketingOptIn } = req.body;
 
-  // Cloud requires explicit ToS + Privacy acceptance at signup. Self-hosted
-  // skips this — operators run their own legal terms (or none at all).
   if (!isSelfHosted()) {
     if (acceptedTos !== true) {
       throw new ValidationError('You must accept the Terms of Service to create an account.');
@@ -102,9 +100,8 @@ router.post('/register', asyncHandler(async (req, res) => {
 
   const user = result.rows[0] as { id: string; display_name: string; email: string; created_at: string; active_until: string };
 
-  // Record ToS + Privacy consent (cloud only — validation above guarantees
-  // both flags are true here). Done before any location membership so the
-  // audit trail orders consent → join, never the reverse.
+  // Record consent before location join so the audit trail orders
+  // consent → membership, never the reverse.
   if (!isSelfHosted()) {
     await recordConsent(user.id, 'signup', req, { marketingOptIn });
   }
