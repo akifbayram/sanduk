@@ -38,9 +38,13 @@ export async function createTestUser(app: Express, overrides?: { email?: string;
   const password = overrides?.password ?? 'TestPass123!';
   const displayName = overrides?.displayName ?? `Test User ${userCounter}`;
 
+  // Always send consent flags. In the default self-hosted test environment
+  // these are ignored; in tests that mock isSelfHosted() to false (plan
+  // gating, downgrade flows, etc.) they satisfy the cloud-only ToS/Privacy
+  // gate added in the consent flow.
   const res = await request(app)
     .post('/api/auth/register')
-    .send({ email, password, displayName });
+    .send({ email, password, displayName, acceptedTos: true, acceptedPrivacy: true });
 
   return {
     token: extractAccessToken(res),

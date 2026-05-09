@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { generateUuid, isUniqueViolation, query } from '../../db.js';
 import { asyncHandler } from '../../lib/asyncHandler.js';
 import { config } from '../../lib/config.js';
+import { recordConsent } from '../../lib/consent.js';
 import { setAccessTokenCookie, setRefreshTokenCookie } from '../../lib/cookies.js';
 import { getEeHooks } from '../../lib/eeHooks.js';
 import { ConflictError, ForbiddenError, ValidationError } from '../../lib/httpErrors.js';
@@ -24,7 +25,18 @@ router.post('/register', asyncHandler(async (req, res) => {
     throw new ForbiddenError('Registration is currently disabled');
   }
 
-  const { email, password, displayName, inviteCode } = req.body;
+  const { email, password, displayName, inviteCode, acceptedTos, acceptedPrivacy, marketingOptIn } = req.body;
+
+  // Cloud requires explicit ToS + Privacy acceptance at signup. Self-hosted
+  // skips this — operators run their own legal terms (or none at all).
+  if (!isSelfHosted()) {
+    if (acceptedTos !== true) {
+      throw new ValidationError('You must accept the Terms of Service to create an account.');
+    }
+    if (acceptedPrivacy !== true) {
+      throw new ValidationError('You must accept the Privacy Policy to create an account.');
+    }
+  }
 
   // In invite mode, invite code is required
   if (regMode === 'invite' && !inviteCode) {
@@ -89,6 +101,13 @@ router.post('/register', asyncHandler(async (req, res) => {
   }
 
   const user = result.rows[0] as { id: string; display_name: string; email: string; created_at: string; active_until: string };
+
+  // Record ToS + Privacy consent (cloud only — validation above guarantees
+  // both flags are true here). Done before any location membership so the
+  // audit trail orders consent → join, never the reverse.
+  if (!isSelfHosted()) {
+    await recordConsent(user.id, 'signup', req, { marketingOptIn });
+  }
 
   // Auto-join location if invite code was valid
   if (locationToJoin) {
