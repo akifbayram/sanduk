@@ -58,7 +58,6 @@ export function BinGroupHeader({
   if (interactive) {
     return (
       <div
-        data-trashed={isTrashed ? 'true' : undefined}
         className={cn(
           'w-full flex items-center rounded-t-[var(--radius-sm)]',
           isTrashed && 'opacity-70',

@@ -1,6 +1,6 @@
 import { CheckSquare, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { cn, flatCard } from '@/lib/utils';
+import { cn, flatCard, plural } from '@/lib/utils';
 import { BinDisclosurePill } from './BinDisclosurePill';
 import { BinGroupHeader } from './BinGroupHeader';
 import { ItemRow } from './ItemRow';
@@ -27,6 +27,7 @@ export function BinItemGroup({
   onBinClick,
 }: BinItemGroupProps) {
   const display = getMatchDisplay(match);
+  const isExpandable = display.mode === 'inline-disclosure';
   const [expanded, setExpanded] = useState(display.defaultExpanded);
   const itemsId = `items-${match.bin_id}`;
   const hiddenCount = Math.max(0, match.total_item_count - match.items.length);
@@ -34,7 +35,7 @@ export function BinItemGroup({
   const trailing =
     display.mode === 'nav-disclosure' ? (
       <BinDisclosurePill mode="nav" countLabel={display.countLabel} />
-    ) : display.mode === 'inline-disclosure' ? (
+    ) : isExpandable ? (
       <BinDisclosurePill
         mode="expand"
         countLabel={display.countLabel}
@@ -58,24 +59,21 @@ export function BinItemGroup({
         isTrashed={!!match.is_trashed}
         onOpen={() => onBinClick(match.bin_id, match.is_trashed)}
         trailing={trailing}
-        interactive={display.mode === 'inline-disclosure'}
+        interactive={isExpandable}
       />
 
-      {display.mode === 'inline-disclosure' && (
+      {isExpandable && (
         <section
           id={itemsId}
           aria-label={`Items in ${match.name}`}
+          aria-hidden={!expanded}
           className={cn(
             'grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none',
             expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
           )}
         >
-          <div
-            ref={(el) => {
-              if (el) el.inert = !expanded;
-            }}
-            className="min-h-0 overflow-hidden"
-          >
+          {/* @ts-expect-error -- inert is valid HTML but not typed in React 18 */}
+          <div className="min-h-0 overflow-hidden" inert={!expanded ? true : undefined}>
             <ul className="border-t border-[var(--border-subtle)]">
               {match.items.map((item) => (
                 <li key={item.id}>
@@ -117,7 +115,7 @@ export function BinItemGroup({
                 className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] border-t border-[var(--border-subtle)] transition-colors"
               >
                 <span className="flex-1 text-left">
-                  + {hiddenCount} more {hiddenCount === 1 ? 'item' : 'items'} — open bin to see all
+                  + {hiddenCount} more {plural(hiddenCount, 'item')} — open bin to see all
                 </span>
                 <ChevronRight className="h-3.5 w-3.5 shrink-0" />
               </button>
