@@ -15,6 +15,7 @@ import { allChecksPassing, computePasswordChecks } from '@/lib/passwordStrength'
 import { isSelfHostedInstance, useAuthStatusConfig } from '@/lib/qrConfig';
 import { cycleThemePreference, useTheme } from '@/lib/theme';
 import { cn, EMAIL_REGEX, focusRing, getErrorMessage } from '@/lib/utils';
+import { ConsentCheckboxes } from './ConsentCheckboxes';
 import { SocialButtons, SocialDivider } from './SocialButtons';
 
 export function RegisterPage() {
@@ -37,6 +38,8 @@ export function RegisterPage() {
     viewerCount: number;
   } | null>(null);
   const [inviteInvalid, setInviteInvalid] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const markTouched = useCallback((field: string) => setTouched((t) => ({ ...t, [field]: true })), []);
 
@@ -153,7 +156,13 @@ export function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register(email.trim(), password, displayName.trim(), inviteCode.trim() || undefined);
+      await register(
+        email.trim(),
+        password,
+        displayName.trim(),
+        inviteCode.trim() || undefined,
+        selfHosted ? undefined : { acceptedTos: tosAccepted, acceptedPrivacy: tosAccepted, marketingOptIn },
+      );
       navigate('/');
     } catch (err) {
       showToast({
@@ -365,22 +374,26 @@ export function RegisterPage() {
                   </fieldset>
 
                   <div className="mt-6 space-y-4">
+                    {!selfHosted && (
+                      <div className="space-y-3 pt-2 pb-4">
+                        <ConsentCheckboxes
+                          tosAccepted={tosAccepted}
+                          onTosChange={setTosAccepted}
+                          marketingOptIn={marketingOptIn}
+                          onMarketingChange={setMarketingOptIn}
+                          marketingVisible={authStatus.marketingOptInVisible}
+                          idPrefix="reg"
+                        />
+                      </div>
+                    )}
                     <Button
                       type="submit"
-                      disabled={!email.trim() || !displayName.trim() || !password || !confirmPassword || loading}
+                      disabled={!email.trim() || !displayName.trim() || !password || !confirmPassword || loading || (!selfHosted && !tosAccepted)}
                       fullWidth
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
                       {loading ? 'Creating account...' : 'Create Account'}
                     </Button>
-                    {!selfHosted && (
-                      <p className="text-center text-[12px] text-[var(--text-tertiary)] leading-relaxed">
-                        By creating an account, you agree to the{' '}
-                        <Link to="/terms" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Terms of Service</Link>
-                        {' '}and{' '}
-                        <Link to="/privacy" className="text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none">Privacy Policy</Link>.
-                      </p>
-                    )}
                   </div>
                 </form>
               </CardContent>

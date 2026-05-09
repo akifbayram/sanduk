@@ -42,6 +42,13 @@ export class ApiError extends Error {
   }
 }
 
+export class ConsentRequiredError extends ApiError {
+  constructor(message: string) {
+    super(403, message, 'CONSENT_REQUIRED');
+    this.name = 'ConsentRequiredError';
+  }
+}
+
 interface ApiFetchOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   timeout?: number;
@@ -148,6 +155,9 @@ async function doFetch<T>(path: string, options: ApiFetchOptions, isRetry: boole
     if (res.status === 403 && Date.now() - lastLocationRefresh > 5_000) {
       lastLocationRefresh = Date.now();
       notify(Events.LOCATIONS);
+    }
+    if (code === 'CONSENT_REQUIRED') {
+      throw new ConsentRequiredError(data.message || 'Consent required');
     }
     const { error: _e, message: _m, upgrade_url: _u, upgrade_action: _ua, ...rest } = data;
     throw new ApiError(

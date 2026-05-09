@@ -53,6 +53,10 @@ const PrivacyPage = lazyWithRetry(() =>
   import('@/features/legal/PrivacyPage').then((m) => ({ default: m.PrivacyPage }))
 );
 
+const CompleteSignupPage = lazyWithRetry(() =>
+  import('@/features/auth/CompleteSignupPage').then((m) => ({ default: m.CompleteSignupPage }))
+);
+
 const PrintPage = lazyWithRetry(() =>
   import('@/features/print/PrintPage').then((m) => ({ default: m.PrintPage }))
 );
@@ -392,6 +396,7 @@ export default function App() {
               <Route path="/reset-password" element={<RouteWithBoundary><ResetPasswordPage /></RouteWithBoundary>} />
               <Route path="/terms" element={<RouteWithBoundary><TermsPage /></RouteWithBoundary>} />
               <Route path="/privacy" element={<RouteWithBoundary><PrivacyPage /></RouteWithBoundary>} />
+              <Route path="/auth/complete-signup" element={<RouteWithBoundary><CompleteSignupPage /></RouteWithBoundary>} />
               <Route path="/s/:token" element={<RouteWithBoundary><SharedBinPage /></RouteWithBoundary>} />
 
               {/* Protected routes */}

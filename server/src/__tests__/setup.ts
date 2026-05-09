@@ -51,6 +51,7 @@ const TABLES = [
   'login_history',
   'announcements',
   'user_oauth_links',
+  'user_consents',
 ];
 
 afterEach(() => {

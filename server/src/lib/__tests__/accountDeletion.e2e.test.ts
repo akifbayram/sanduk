@@ -459,7 +459,7 @@ describe('account deletion E2E (race conditions)', () => {
 
     const res = await request(app)
       .post('/api/auth/register')
-      .send({ email, password: 'StrongPass1!', displayName: 'Re-register' });
+      .send({ email, password: 'StrongPass1!', displayName: 'Re-register', acceptedTos: true, acceptedPrivacy: true });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('EMAIL_PENDING_DELETION');
@@ -472,7 +472,7 @@ describe('account deletion E2E (race conditions)', () => {
     const password = 'StrongPass1!';
     const reg = await request(app)
       .post('/api/auth/register')
-      .send({ email, password, displayName: 'Race Five' });
+      .send({ email, password, displayName: 'Race Five', acceptedTos: true, acceptedPrivacy: true });
     expect(reg.status).toBe(201);
     const userId = reg.body.user.id as string;
 

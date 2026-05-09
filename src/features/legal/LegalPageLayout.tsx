@@ -1,13 +1,11 @@
 import { ChevronLeft, Monitor, Moon, Sun } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Card, CardContent } from '@/components/ui/card';
-import { isSelfHostedInstance, waitForConfig } from '@/lib/qrConfig';
+import { getAuthStatusConfig, isSelfHostedInstance, waitForConfig } from '@/lib/qrConfig';
 import { cycleThemePreference, useTheme } from '@/lib/theme';
 import { cn, focusRing } from '@/lib/utils';
-
-const EFFECTIVE_DATE = 'March 31, 2026';
 
 interface LegalPageLayoutProps {
   title: string;
@@ -29,6 +27,21 @@ export function LegalPageLayout({ title, crossLink, children }: LegalPageLayoutP
     });
     return () => { cancelled = true; };
   }, [navigate]);
+
+  const effectiveDate = useMemo(() => {
+    if (!ready) return null;
+    const status = getAuthStatusConfig();
+    const raw = status.tosVersion ?? status.privacyVersion;
+    if (!raw) return null;
+    const dt = new Date(`${raw}T00:00:00Z`);
+    if (Number.isNaN(dt.getTime())) return null;
+    return dt.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    });
+  }, [ready]);
 
   if (!ready) return null;
   const ThemeIcon = preference === 'light' ? Sun : preference === 'dark' ? Moon : Monitor;
@@ -55,9 +68,11 @@ export function LegalPageLayout({ title, crossLink, children }: LegalPageLayoutP
           <h1 className="font-heading text-[28px] font-bold text-[var(--text-primary)] tracking-tight">
             {title}
           </h1>
-          <p className="text-[13px] text-[var(--text-tertiary)]">
-            Effective {EFFECTIVE_DATE}
-          </p>
+          {effectiveDate && (
+            <p className="text-[13px] text-[var(--text-tertiary)]">
+              Effective {effectiveDate}
+            </p>
+          )}
         </div>
 
         <Card>

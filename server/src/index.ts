@@ -23,6 +23,7 @@ import { isRestoreInProgress } from './lib/restore.js';
 import { tryAuthenticate } from './middleware/auth.js';
 import { maintenanceGate } from './middleware/maintenance.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { requireCurrentConsent } from './middleware/requireCurrentConsent.js';
 import { requireActiveSubscription } from './middleware/requirePlan.js';
 import activityRoutes from './routes/activity.js';
 import adminRoutes from './routes/admin/index.js';
@@ -193,6 +194,12 @@ export function createApp(opts?: { mountEeRoutes?: (app: express.Express) => voi
   app.use('/api', tryAuthenticate);
   app.use('/api', apiLimiter);
   app.use('/api', maintenanceGate, requireActiveSubscription());
+  // Cloud-only: block mutating requests from users with stale consent.
+  // Skip the auth subtree entirely so /complete-consent itself can be reached.
+  app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth/')) return next();
+    return requireCurrentConsent(req, res, next);
+  });
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/demo-login', authLimiter);
   app.use('/api/auth/register', registerLimiter);
