@@ -16,6 +16,9 @@ export interface User {
   hasPassword?: boolean;
   deletionRequestedAt?: string | null;
   deletionScheduledAt?: string | null;
+  currentTosVersion?: string | null;
+  currentPrivacyVersion?: string | null;
+  marketingOptIn?: boolean;
 }
 
 export interface Location {

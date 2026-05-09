@@ -14,6 +14,9 @@ export interface AuthStatusConfig {
   registrationEnabled: boolean;
   oauthProviders: string[];
   demoMode: boolean;
+  tosVersion: string | null;
+  privacyVersion: string | null;
+  marketingOptInVisible: boolean;
 }
 
 let cached: QrConfig = { qrPayloadMode: 'app' };
@@ -24,6 +27,9 @@ let authStatusCached: AuthStatusConfig = {
   registrationEnabled: true,
   oauthProviders: [],
   demoMode: false,
+  tosVersion: null,
+  privacyVersion: null,
+  marketingOptInVisible: false,
 };
 let initPromise: Promise<void> | null = null;
 
@@ -104,6 +110,9 @@ async function _doInit(): Promise<void> {
       registrationEnabled: data.registrationEnabled !== false,
       oauthProviders: Array.isArray(data.oauthProviders) ? data.oauthProviders : [],
       demoMode: data.demoMode === true,
+      tosVersion: typeof data.tosVersion === 'string' ? data.tosVersion : null,
+      privacyVersion: typeof data.privacyVersion === 'string' ? data.privacyVersion : null,
+      marketingOptInVisible: data.marketingOptInVisible === true,
     };
   } catch {
     // Keep defaults on network failure
