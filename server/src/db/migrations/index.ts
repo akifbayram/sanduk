@@ -10,6 +10,7 @@ import { drainDeleteUserOutbox } from './0009_drain_delete_user_outbox.js';
 import { relaxCreatedByFks } from './0010_relax_created_by_fks.js';
 import { clearLegacyMonthlyBillingPeriod } from './0011_clear_legacy_monthly_billing_period.js';
 import { resetAiCreditPeriods } from './0012_reset_ai_credit_periods.js';
+import { userConsent } from './0013_user_consent.js';
 import type { Migration } from './types.js';
 
 /**
@@ -29,4 +30,5 @@ export const migrations: Migration[] = [
   relaxCreatedByFks,
   clearLegacyMonthlyBillingPeriod,
   resetAiCreditPeriods,
+  userConsent,
 ];
