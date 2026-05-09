@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS users (
   deletion_requested_at TEXT,
   deletion_scheduled_at TEXT,
   deletion_reason    TEXT,
+  current_tos_version    TEXT,
+  current_privacy_version TEXT,
+  marketing_opt_in       BOOLEAN NOT NULL DEFAULT FALSE,
+  marketing_opt_in_at    TEXT,
+  marketing_opt_out_at   TEXT,
   created_at         TEXT NOT NULL DEFAULT (NOW()),
   updated_at         TEXT NOT NULL DEFAULT (NOW())
 );
@@ -534,3 +539,17 @@ CREATE TABLE IF NOT EXISTS bin_usage_days (
 );
 CREATE INDEX IF NOT EXISTS idx_bin_usage_days_date ON bin_usage_days(date);
 CREATE INDEX IF NOT EXISTS idx_bin_usage_days_bin ON bin_usage_days(bin_id, date DESC);
+
+-- User consent audit trail (cloud only). See SQLite schema for full notes.
+CREATE TABLE IF NOT EXISTS user_consents (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  document    TEXT NOT NULL,
+  version     TEXT NOT NULL,
+  accepted_at TEXT NOT NULL,
+  ip          TEXT,
+  user_agent  TEXT,
+  source      TEXT NOT NULL,
+  UNIQUE(user_id, document, version)
+);
+CREATE INDEX IF NOT EXISTS idx_user_consents_user_id ON user_consents(user_id);
