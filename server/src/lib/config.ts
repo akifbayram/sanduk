@@ -196,6 +196,13 @@ export const config = Object.freeze({
   // Non-image file attachments on bins (on by default; set ATTACHMENTS_ENABLED=false to disable)
   attachmentsEnabled: parseBool(process.env.ATTACHMENTS_ENABLED, true),
 
+  // When true, the optional marketing-email checkbox renders on signup +
+  // /auth/complete-signup, and `marketingOptIn` body fields are honored on
+  // /api/auth/register and /api/auth/complete-consent. When false (default),
+  // marketing input is silently ignored even if a request supplies it
+  // (defense in depth — the column still exists and stays at 0).
+  marketingOptInVisible: parseBool(process.env.MARKETING_OPT_IN_VISIBLE, false),
+
   // AI API key encryption (separate from JWT to avoid single point of compromise)
   aiEncryptionKey: process.env.AI_ENCRYPTION_KEY || null,
 
