@@ -186,14 +186,11 @@ export function applyContextLimits<T extends { bin_code: string; name: string; i
   userText?: string,
   scoped = false,
 ): { bins: T[]; other_bins: Array<{ bin_code: string; name: string }>; complete: boolean } {
-  let bins = allBins;
-  let other_bins: Array<{ bin_code: string; name: string }> = [];
-  if (userText) {
-    const filtered = filterRelevantBins(allBins, userText);
-    bins = filtered.relevant;
-    other_bins = filtered.rest;
-  }
-  const budgeted = budgetContext(bins, other_bins);
+  // PRE-FILTER DISABLED FOR TESTING — keyword pre-filter (filterRelevantBins)
+  // dropped/reordered bins before the AI saw them. Skip straight to the token
+  // budget so every bin reaches the model. userText is intentionally unused.
+  void userText;
+  const budgeted = budgetContext(allBins, []);
   return { ...budgeted, complete: !scoped && budgeted.bins.length === allBins.length };
 }
 

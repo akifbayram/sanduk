@@ -101,6 +101,16 @@ function stripPunct(s: string): string {
     .trim();
 }
 
+const CHECKOUT_SUFFIX = /\s*\(checked out by [^)]+\)\s*$/i;
+const QUANTITY_SUFFIX = /\s*\(×\s*\d+\s*\)\s*$/;
+
+/** Items are presented to the AI as "name (×3)" or "name (checked out by Alice)"
+ *  by aiContext.formatItem. Models faithfully echo the suffix, so we strip it
+ *  before looking up the original DB item by name. */
+function stripFormattedSuffixes(s: string): string {
+  return s.replace(CHECKOUT_SUFFIX, '').replace(QUANTITY_SUFFIX, '').trim();
+}
+
 async function enrichOneMatch(
   match: RawMatch,
   locationId: string,
@@ -142,10 +152,14 @@ async function enrichOneMatch(
 
   const items: EnrichedQueryItem[] = [];
   for (const aiName of match.items) {
+    const stripped = stripFormattedSuffixes(aiName);
     const hit =
       byExact.get(aiName) ??
+      byExact.get(stripped) ??
       byLower.get(normalizeStr(aiName)) ??
-      byStripped.get(normalizeStr(stripPunct(aiName)));
+      byLower.get(normalizeStr(stripped)) ??
+      byStripped.get(normalizeStr(stripPunct(aiName))) ??
+      byStripped.get(normalizeStr(stripPunct(stripped)));
     if (hit) {
       items.push(hit);
     } else {

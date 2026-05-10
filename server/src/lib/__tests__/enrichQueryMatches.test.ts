@@ -106,6 +106,38 @@ describe('enrichQueryMatches', () => {
     expect(result[0].items[0].name).toBe('Multi-tool');
   });
 
+  it('resolves items echoed back with formatItem suffixes (×N) and (checked out by)', async () => {
+    const { userId, locationId, binCode } = await setupBin([
+      { name: 'Emergency flares', quantity: 3 },
+      { name: 'Cordless drill', quantity: null },
+    ]);
+
+    const rawMatches = [
+      {
+        bin_code: binCode,
+        name: 'Test Bin',
+        area_name: '',
+        items: [
+          'Emergency flares (×3)',
+          'Cordless drill (checked out by Alice)',
+        ],
+        tags: [],
+        relevance: 'high',
+        is_trashed: false,
+      },
+    ];
+
+    const result = await enrichQueryMatches(rawMatches, locationId, userId);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].items).toHaveLength(2);
+    expect(result[0].items.map((i) => i.name).sort()).toEqual(
+      ['Cordless drill', 'Emergency flares'],
+    );
+    const flares = result[0].items.find((i) => i.name === 'Emergency flares');
+    expect(flares?.quantity).toBe(3);
+  });
+
   it('silently drops unresolvable items', async () => {
     const { userId, locationId, binCode } = await setupBin([
       { name: 'Tent', quantity: null },
