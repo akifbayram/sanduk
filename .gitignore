@@ -20,3 +20,5 @@ superpowers/
 .impeccable.md
 .interface-design
 **/.jwt_secret
+.playwright-mcp/
+smoke-*.png
