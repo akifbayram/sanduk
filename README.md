@@ -16,7 +16,7 @@
 <p>Inventory with intelligence. Organize physical storage bins with QR codes, photo recognition, and multi-user collaboration.</p>
 
 
-  <img src="docs/assets/bins.png" alt="OpenBin dashboard showing bins organized by area" width="700" />
+  <img src="https://openbin.app/screenshots/bins-grid.webp" alt="OpenBin dashboard showing bins organized by area" width="700" />
 
 </div>
 
