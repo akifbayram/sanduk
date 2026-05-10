@@ -24,6 +24,14 @@ export function pluralize(count: number, singular: string, plural?: string): str
 
 export const EMAIL_REGEX = /^[^\s@+]+@[^\s@]+\.[^\s@]+$/;
 
+/** Returns the first whitespace-separated token of a name (e.g. "John Smith" → "John"). */
+export function firstName(name: string | null | undefined): string {
+  if (!name) return '';
+  const trimmed = name.trim();
+  const space = trimmed.indexOf(' ');
+  return space === -1 ? trimmed : trimmed.slice(0, space);
+}
+
 export function haptic(pattern: number | number[] = 10) {
   if ('vibrate' in navigator) {
     navigator.vibrate(pattern);

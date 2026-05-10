@@ -6,7 +6,7 @@ import { Highlight } from '@/components/ui/highlight';
 import { LoadMoreSentinel } from '@/components/ui/load-more-sentinel';
 import { Table, TableHeader, TableRow } from '@/components/ui/table';
 import { useTerminology } from '@/lib/terminology';
-import { cn, relativeTime } from '@/lib/utils';
+import { cn, firstName, relativeTime } from '@/lib/utils';
 import type { ActivityLogEntry } from '@/types';
 import { ActivityRowDetail } from './ActivityRowDetail';
 import { getActionBadgeLabel, getActionColor, getActionIcon, getChangedFieldLabels, getEntityDescription } from './activityHelpers';
@@ -106,7 +106,7 @@ export function ActivityTableView({ entries, hasMore, isLoadingMore, loadMore, s
                   <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
                     <p className="text-[13px] text-[var(--text-primary)] min-w-0">
                       <span className="lg:hidden font-medium truncate max-w-[10rem]" title={entry.display_name}>
-                        <Highlight text={entry.display_name} query={searchQuery} />
+                        <Highlight text={firstName(entry.display_name)} query={searchQuery} />
                       </span>{' '}
                       <Highlight text={getEntityDescription(entry, t)} query={searchQuery} />
                     </p>
@@ -124,7 +124,7 @@ export function ActivityTableView({ entries, hasMore, isLoadingMore, loadMore, s
 
                 <div className="hidden lg:flex flex-1 min-w-0 items-center gap-1.5">
                   <span className="text-[13px] text-[var(--text-secondary)] truncate max-w-[10rem]" title={entry.display_name}>
-                    <Highlight text={entry.display_name} query={searchQuery} />
+                    <Highlight text={firstName(entry.display_name)} query={searchQuery} />
                   </span>
                   {entry.auth_method === 'api_key' && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">

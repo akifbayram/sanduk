@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getActionColor, getActionIcon, getActionLabel } from '@/features/activity/activityHelpers';
 import { usePaginatedActivityLog } from '@/features/activity/useActivity';
 import { useTerminology } from '@/lib/terminology';
-import { cn, flatCard, relativeTime } from '@/lib/utils';
+import { cn, firstName, flatCard, relativeTime } from '@/lib/utils';
 import { SectionHeader } from './DashboardWidgets';
 
 const FEED_LIMIT = 6;
@@ -62,7 +62,7 @@ export function DashboardActivityFeed({ showTimestamps = true }: DashboardActivi
                       {getActionIcon(entry)}
                     </div>
                     <p className="flex-1 min-w-0 text-[13px] text-[var(--text-primary)] truncate leading-snug">
-                      <span className="font-medium">{entry.display_name}</span>{' '}
+                      <span className="font-medium">{firstName(entry.display_name)}</span>{' '}
                       <span className="text-[var(--text-secondary)]">{getActionLabel(entry, t)}</span>
                     </p>
                     {showTimestamps && (

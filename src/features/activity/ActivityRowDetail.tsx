@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { categoryHeader, cn, formatDate } from '@/lib/utils';
+import { categoryHeader, cn, firstName, formatDate } from '@/lib/utils';
 import type { ActivityLogEntry } from '@/types';
 import { getActionBadgeLabel, getActionColor, renderChangeDiff } from './activityHelpers';
 
@@ -53,7 +53,7 @@ export function ActivityRowDetail({ entry, onNavigate }: ActivityRowDetailProps)
       )}
 
       <div className={cn('flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--text-tertiary)]', changeDiffs && 'pt-2 border-t border-[var(--border-subtle)]')}>
-        <span>User: {entry.display_name}</span>
+        <span title={entry.display_name}>User: {firstName(entry.display_name)}</span>
         <span>Auth: {entry.auth_method === 'api_key' && entry.api_key_name ? `API: ${entry.api_key_name}` : entry.auth_method ?? 'unknown'}</span>
         <span>{formatDate(entry.created_at)}</span>
         {onNavigate && (
