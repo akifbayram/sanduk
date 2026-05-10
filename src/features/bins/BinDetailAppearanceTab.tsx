@@ -41,6 +41,7 @@ export function BinDetailAppearanceTab({ bin, autoSave, photos }: BinDetailAppea
           icon={localIcon}
           cardStyle={localCardStyle}
           areaName={bin.area_name}
+          fixedSize
         />
       </div>
       <div className="space-y-5 min-w-0">

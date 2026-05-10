@@ -8,7 +8,7 @@ import { getPremadeUrl } from '@/lib/premadeBackgrounds';
 import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 
-export function BinPreviewCard({ name, color, items, tags, icon, cardStyle, areaName, className }: {
+export function BinPreviewCard({ name, color, items, tags, icon, cardStyle, areaName, className, fixedSize }: {
   name: string;
   color: string;
   items: string[];
@@ -17,6 +17,7 @@ export function BinPreviewCard({ name, color, items, tags, icon, cardStyle, area
   cardStyle?: string;
   areaName?: string;
   className?: string;
+  fixedSize?: boolean;
 }) {
   const { theme } = useTheme();
   const getTagStyle = useTagStyle();
@@ -43,25 +44,30 @@ export function BinPreviewCard({ name, color, items, tags, icon, cardStyle, area
     ? { color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,0.6)' }
     : primaryColor ? { color: primaryColor } : undefined;
 
+  const showArea = fixedSize || !!areaName;
+  const showItems = fixedSize || items.length > 0;
+  const showTags = fixedSize || tags.length > 0;
+  const tagsToRender = tags.length > 0 ? tags : fixedSize ? ['tag', 'label'] : [];
+
   const content = (
     <div className="flex items-start gap-3">
       <div className="min-w-0 flex-1">
         <h3 className="font-semibold text-[15px] text-[var(--text-primary)] truncate leading-snug" style={nameStyle}>
           {name || <span>My bin</span>}
         </h3>
-        {areaName && (
+        {showArea && (
           <p className="text-[12px] text-[var(--text-tertiary)] truncate leading-relaxed" style={secondaryStyle}>
-            {areaName}
+            {areaName || (fixedSize ? 'Area' : ' ')}
           </p>
         )}
-        {items.length > 0 && (
+        {showItems && (
           <p className="mt-1 text-[13px] text-[var(--text-tertiary)] line-clamp-1 leading-relaxed" style={secondaryStyle}>
-            {items.join(', ')}
+            {items.length > 0 ? items.join(', ') : fixedSize ? 'Item one, item two, item three' : ' '}
           </p>
         )}
-        {tags.length > 0 && (
+        {showTags && (
           <div className="flex gap-1.5 mt-2 overflow-hidden">
-            {tags.map((tag) => (
+            {tagsToRender.map((tag) => (
               <Badge key={tag} variant="secondary" className="text-[11px]" style={getTagStyle(tag)}>
                 {tag}
               </Badge>
