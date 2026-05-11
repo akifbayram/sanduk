@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateFab } from '../CreateFab';
@@ -197,6 +197,14 @@ describe('CreateFab speed dial', () => {
     expect(screen.getByRole('button', { name: /create bin/i })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('menuitem', { name: /new bin/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /add from photos/i })).toBeInTheDocument();
+  });
+
+  it('moves focus to the New bin pill when opened', async () => {
+    render(<Harness pathname="/bins" />);
+    fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: /new bin/i })).toHaveFocus();
+    });
   });
 
   it('closes the speed dial when the FAB is tapped again', () => {

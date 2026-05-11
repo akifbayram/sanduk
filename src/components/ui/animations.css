@@ -109,6 +109,26 @@
 .fade-in-fast { animation: fadeInFast 0.15s ease-out; }
 @keyframes fadeInFast { from { opacity: 0; } to { opacity: 1; } }
 
+/* ─── Speed-dial pill animations ─── */
+@keyframes pillRiseFast {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pill-rise-fast {
+  animation: pillRiseFast 0.18s ease-out;
+}
+
+.pill-rise-fast-delayed {
+  animation: pillRiseFast 0.18s ease-out 50ms backwards;
+}
+
 /* ─── Onboarding Feature Cards ─── */
 .onboarding-feature-card { opacity: 0; animation: onboardFadeInUp 0.35s ease-out forwards; }
 .onboarding-feature-card:nth-child(1) { animation-delay: 0s; }
@@ -143,7 +163,8 @@
   .onboarding-completion-icon, .onboarding-action-card,
   .scan-success-enter, .scan-check-scale,
   .scan-check-draw, .scan-ring-1, .scan-ring-2, .scan-ring-3,
-  .scan-text-fade, .scan-text-fade-delay, .fade-in-fast {
+  .scan-text-fade, .scan-text-fade-delay, .fade-in-fast,
+  .pill-rise-fast, .pill-rise-fast-delayed {
     animation: none !important;
   }
   .onboarding-feature-card, .onboarding-action-card { opacity: 1 !important; }

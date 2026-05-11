@@ -17,6 +17,14 @@ export function CreateFab() {
   const terminology = useTerminology();
   const [open, setOpen] = useState(false);
   const fabRef = useRef<HTMLButtonElement>(null);
+  const newBinPillRef = useRef<HTMLButtonElement>(null);
+
+  // Focus the lower pill (New bin) when the speed dial opens
+  useEffect(() => {
+    if (open) {
+      queueMicrotask(() => newBinPillRef.current?.focus());
+    }
+  }, [open]);
 
   // Close on Escape
   useEffect(() => {
@@ -63,7 +71,7 @@ export function CreateFab() {
               type="button"
               role="menuitem"
               aria-label="Add from photos"
-              className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md fade-in-fast motion-reduce:animate-none"
+              className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md pill-rise-fast-delayed motion-reduce:animate-none"
               onClick={() => {
                 setOpen(false);
                 // navigation wired in Task 5
@@ -73,10 +81,11 @@ export function CreateFab() {
               <span className="text-[14px] font-medium">Add from photos</span>
             </button>
             <button
+              ref={newBinPillRef}
               type="button"
               role="menuitem"
               aria-label={newBinLabel}
-              className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md fade-in-fast motion-reduce:animate-none"
+              className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md pill-rise-fast motion-reduce:animate-none"
               onClick={() => {
                 setOpen(false);
                 // navigation wired in Task 5
