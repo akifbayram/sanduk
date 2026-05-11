@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateFab } from '../CreateFab';
@@ -100,5 +100,64 @@ describe('CreateFab visibility (hidden cases)', () => {
     vi.mocked(usePlan).mockReturnValue({ isLocked: true, isSelfHosted: true } as ReturnType<typeof usePlan>);
     const { container } = render(<Harness pathname="/bins" />);
     expect(container.firstChild).not.toBeNull();
+  });
+});
+
+describe('CreateFab closed state', () => {
+  beforeEach(async () => {
+    const { usePermissions } = await import('@/lib/usePermissions');
+    const { usePlan } = await import('@/lib/usePlan');
+    const { useTerminology } = await import('@/lib/terminology');
+    vi.mocked(usePermissions).mockReturnValue({ canCreateBin: true } as ReturnType<typeof usePermissions>);
+    vi.mocked(usePlan).mockReturnValue({ isLocked: false, isSelfHosted: false } as ReturnType<typeof usePlan>);
+    vi.mocked(useTerminology).mockReturnValue({
+      bin: 'bin',
+      bins: 'bins',
+      Bin: 'Bin',
+      Bins: 'Bins',
+      location: 'location',
+      locations: 'locations',
+      Location: 'Location',
+      Locations: 'Locations',
+      area: 'area',
+      areas: 'areas',
+      Area: 'Area',
+      Areas: 'Areas',
+    });
+  });
+
+  it('renders a button on /bins', () => {
+    render(<Harness pathname="/bins" />);
+    expect(screen.getByRole('button', { name: /create bin/i })).toBeInTheDocument();
+  });
+
+  it('renders on /settings/preferences (settings show the FAB)', () => {
+    render(<Harness pathname="/settings/preferences" />);
+    expect(screen.getByRole('button', { name: /create bin/i })).toBeInTheDocument();
+  });
+
+  it('uses the active location terminology in the aria-label', async () => {
+    const { useTerminology } = await import('@/lib/terminology');
+    vi.mocked(useTerminology).mockReturnValue({
+      bin: 'box',
+      bins: 'boxes',
+      Bin: 'Box',
+      Bins: 'Boxes',
+      location: 'location',
+      locations: 'locations',
+      Location: 'Location',
+      Locations: 'Locations',
+      area: 'area',
+      areas: 'areas',
+      Area: 'Area',
+      Areas: 'Areas',
+    });
+    render(<Harness pathname="/bins" />);
+    expect(screen.getByRole('button', { name: /create box/i })).toBeInTheDocument();
+  });
+
+  it('starts with aria-expanded="false"', () => {
+    render(<Harness pathname="/bins" />);
+    expect(screen.getByRole('button', { name: /create/i })).toHaveAttribute('aria-expanded', 'false');
   });
 });
