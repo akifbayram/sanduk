@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation as useRouterLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateFab } from '../CreateFab';
 import { CreateFabProvider, type CreateFabSuppression } from '../CreateFabContext';
@@ -228,5 +228,82 @@ describe('CreateFab speed dial', () => {
     fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
     fireEvent.click(screen.getByTestId('create-fab-backdrop'));
     expect(screen.getByRole('button', { name: /create bin/i })).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+function LocationProbe() {
+  const loc = useRouterLocation();
+  return (
+    <div data-testid="probe">
+      <span data-testid="pathname">{loc.pathname}</span>
+      <span data-testid="state">{JSON.stringify(loc.state ?? null)}</span>
+    </div>
+  );
+}
+
+function NavHarness({ start = '/bins' }: { start?: string }) {
+  const merged: CreateFabSuppression = {
+    scanDialogOpen: false,
+    onboardingActive: false,
+    thinGateActive: false,
+    tourActive: false,
+  };
+  return (
+    <MemoryRouter initialEntries={[start]}>
+      <CreateFabProvider {...merged}>
+        <CreateFab />
+        <Routes>
+          <Route path="/bins" element={<LocationProbe />} />
+          <Route path="/capture" element={<LocationProbe />} />
+          <Route path="/items" element={<LocationProbe />} />
+        </Routes>
+      </CreateFabProvider>
+    </MemoryRouter>
+  );
+}
+
+describe('CreateFab navigation', () => {
+  beforeEach(async () => {
+    const { usePermissions } = await import('@/lib/usePermissions');
+    const { usePlan } = await import('@/lib/usePlan');
+    const { useTerminology } = await import('@/lib/terminology');
+    vi.mocked(usePermissions).mockReturnValue({ canCreateBin: true } as ReturnType<typeof usePermissions>);
+    vi.mocked(usePlan).mockReturnValue({ isLocked: false, isSelfHosted: false } as ReturnType<typeof usePlan>);
+    vi.mocked(useTerminology).mockReturnValue({
+      bin: 'bin',
+      bins: 'bins',
+      Bin: 'Bin',
+      Bins: 'Bins',
+      location: 'location',
+      locations: 'locations',
+      Location: 'Location',
+      Locations: 'Locations',
+      area: 'area',
+      areas: 'areas',
+      Area: 'Area',
+      Areas: 'Areas',
+    });
+  });
+
+  it('"New bin" navigates to /bins with { create: true } state', () => {
+    render(<NavHarness start="/items" />);
+    fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /new bin/i }));
+    expect(screen.getByTestId('pathname').textContent).toBe('/bins');
+    expect(screen.getByTestId('state').textContent).toBe('{"create":true}');
+  });
+
+  it('"Add from photos" navigates to /capture', () => {
+    render(<NavHarness start="/items" />);
+    fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /add from photos/i }));
+    expect(screen.getByTestId('pathname').textContent).toBe('/capture');
+  });
+
+  it('closes the speed dial when route changes (no longer renders pills)', () => {
+    render(<NavHarness start="/items" />);
+    fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /new bin/i }));
+    expect(screen.queryByRole('menuitem', { name: /new bin/i })).not.toBeInTheDocument();
   });
 });
