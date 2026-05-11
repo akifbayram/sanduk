@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateFab } from '../CreateFab';
@@ -159,5 +159,66 @@ describe('CreateFab closed state', () => {
   it('starts with aria-expanded="false"', () => {
     render(<Harness pathname="/bins" />);
     expect(screen.getByRole('button', { name: /create/i })).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('CreateFab speed dial', () => {
+  beforeEach(async () => {
+    const { usePermissions } = await import('@/lib/usePermissions');
+    const { usePlan } = await import('@/lib/usePlan');
+    const { useTerminology } = await import('@/lib/terminology');
+    vi.mocked(usePermissions).mockReturnValue({ canCreateBin: true } as ReturnType<typeof usePermissions>);
+    vi.mocked(usePlan).mockReturnValue({ isLocked: false, isSelfHosted: false } as ReturnType<typeof usePlan>);
+    vi.mocked(useTerminology).mockReturnValue({
+      bin: 'bin',
+      bins: 'bins',
+      Bin: 'Bin',
+      Bins: 'Bins',
+      location: 'location',
+      locations: 'locations',
+      Location: 'Location',
+      Locations: 'Locations',
+      area: 'area',
+      areas: 'areas',
+      Area: 'Area',
+      Areas: 'Areas',
+    });
+  });
+
+  it('does not show pill menu items by default', () => {
+    render(<Harness pathname="/bins" />);
+    expect(screen.queryByRole('menuitem', { name: /new bin/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /add from photos/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the speed dial when the FAB is tapped', () => {
+    render(<Harness pathname="/bins" />);
+    fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
+    expect(screen.getByRole('button', { name: /create bin/i })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('menuitem', { name: /new bin/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /add from photos/i })).toBeInTheDocument();
+  });
+
+  it('closes the speed dial when the FAB is tapped again', () => {
+    render(<Harness pathname="/bins" />);
+    const fab = screen.getByRole('button', { name: /create bin/i });
+    fireEvent.click(fab);
+    fireEvent.click(fab);
+    expect(fab).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('menuitem', { name: /new bin/i })).not.toBeInTheDocument();
+  });
+
+  it('closes when Escape is pressed', () => {
+    render(<Harness pathname="/bins" />);
+    fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: /create bin/i })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes when the backdrop is clicked', () => {
+    render(<Harness pathname="/bins" />);
+    fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
+    fireEvent.click(screen.getByTestId('create-fab-backdrop'));
+    expect(screen.getByRole('button', { name: /create bin/i })).toHaveAttribute('aria-expanded', 'false');
   });
 });
