@@ -1,6 +1,8 @@
+import '@/components/ui/animations.css';
 import { Camera, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigationGuard } from '@/lib/navigationGuard';
 import { useTerminology } from '@/lib/terminology';
 import { usePermissions } from '@/lib/usePermissions';
 import { usePlan } from '@/lib/usePlan';
@@ -19,6 +21,7 @@ export function CreateFab() {
   const fabRef = useRef<HTMLButtonElement>(null);
   const newBinPillRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
+  const { guardedNavigate } = useNavigationGuard();
 
   // Focus the lower pill (New bin) when the speed dial opens
   useEffect(() => {
@@ -81,7 +84,7 @@ export function CreateFab() {
               className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md pill-rise-fast-delayed motion-reduce:animate-none"
               onClick={() => {
                 setOpen(false);
-                navigate('/capture');
+                guardedNavigate(() => navigate('/capture'));
               }}
             >
               <Camera className="h-5 w-5" />
@@ -95,7 +98,7 @@ export function CreateFab() {
               className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md pill-rise-fast motion-reduce:animate-none"
               onClick={() => {
                 setOpen(false);
-                navigate('/bins', { state: { create: true } });
+                guardedNavigate(() => navigate('/bins', { state: { create: true } }));
               }}
             >
               <Plus className="h-5 w-5" />
