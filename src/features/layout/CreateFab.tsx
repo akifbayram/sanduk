@@ -1,15 +1,27 @@
 import '@/components/ui/animations.css';
-import { Camera, Plus } from 'lucide-react';
+import { Camera, type LucideIcon, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/lib/navigationGuard';
 import { useTerminology } from '@/lib/terminology';
 import { usePermissions } from '@/lib/usePermissions';
 import { usePlan } from '@/lib/usePlan';
-import { cn } from '@/lib/utils';
+import { cn, focusRing } from '@/lib/utils';
 import { useCreateFabSuppression } from './CreateFabContext';
 
 const HIDDEN_PATHS = new Set(['/capture', '/new-bin', '/scan']);
+
+const PILL_CLASS =
+  'flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md';
+
+interface Pill {
+  key: string;
+  icon: LucideIcon;
+  label: string;
+  animClass: string;
+  ref?: React.RefObject<HTMLButtonElement>;
+  onSelect: () => void;
+}
 
 export function CreateFab() {
   const { pathname } = useLocation();
@@ -23,20 +35,17 @@ export function CreateFab() {
   const navigate = useNavigate();
   const { guardedNavigate } = useNavigationGuard();
 
-  // Focus the lower pill (New bin) when the speed dial opens
   useEffect(() => {
     if (open) {
       queueMicrotask(() => newBinPillRef.current?.focus());
     }
   }, [open]);
 
-  // Close defensively when the route changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the intentional trigger
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return;
     function handleKey(e: KeyboardEvent) {
@@ -46,8 +55,8 @@ export function CreateFab() {
         fabRef.current?.focus();
       }
     }
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
   }, [open]);
 
   if (HIDDEN_PATHS.has(pathname)) return null;
@@ -60,6 +69,24 @@ export function CreateFab() {
   if (isLocked && !isSelfHosted) return null;
 
   const newBinLabel = `New ${terminology.bin}`;
+
+  const pills: Pill[] = [
+    {
+      key: 'photos',
+      icon: Camera,
+      label: 'Add from photos',
+      animClass: 'pill-rise-fast-delayed',
+      onSelect: () => guardedNavigate(() => navigate('/capture')),
+    },
+    {
+      key: 'new-bin',
+      icon: Plus,
+      label: newBinLabel,
+      animClass: 'pill-rise-fast',
+      ref: newBinPillRef,
+      onSelect: () => guardedNavigate(() => navigate('/bins', { state: { create: true } })),
+    },
+  ];
 
   return (
     <>
@@ -77,33 +104,23 @@ export function CreateFab() {
       >
         {open && (
           <div role="menu" aria-label="Create options" className="flex flex-col items-end gap-2">
-            <button
-              type="button"
-              role="menuitem"
-              aria-label="Add from photos"
-              className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md pill-rise-fast-delayed motion-reduce:animate-none"
-              onClick={() => {
-                setOpen(false);
-                guardedNavigate(() => navigate('/capture'));
-              }}
-            >
-              <Camera className="h-5 w-5" />
-              <span className="text-[14px] font-medium">Add from photos</span>
-            </button>
-            <button
-              ref={newBinPillRef}
-              type="button"
-              role="menuitem"
-              aria-label={newBinLabel}
-              className="flat-heavy flex items-center gap-2 rounded-[var(--radius-lg)] px-4 py-2.5 text-[var(--text-primary)] shadow-md pill-rise-fast motion-reduce:animate-none"
-              onClick={() => {
-                setOpen(false);
-                guardedNavigate(() => navigate('/bins', { state: { create: true } }));
-              }}
-            >
-              <Plus className="h-5 w-5" />
-              <span className="text-[14px] font-medium">{newBinLabel}</span>
-            </button>
+            {pills.map(({ key, icon: Icon, label, animClass, ref: pillRef, onSelect }) => (
+              <button
+                key={key}
+                ref={pillRef}
+                type="button"
+                role="menuitem"
+                aria-label={label}
+                className={cn(PILL_CLASS, animClass, focusRing)}
+                onClick={() => {
+                  setOpen(false);
+                  onSelect();
+                }}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-[14px] font-medium">{label}</span>
+              </button>
+            ))}
           </div>
         )}
         <button
@@ -113,7 +130,10 @@ export function CreateFab() {
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--text-on-accent)] shadow-lg"
+          className={cn(
+            'flex h-14 w-14 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--text-on-accent)] shadow-lg',
+            focusRing,
+          )}
         >
           <Plus
             className={cn('h-6 w-6 transition-transform duration-150 motion-reduce:transition-none', open && 'rotate-45')}

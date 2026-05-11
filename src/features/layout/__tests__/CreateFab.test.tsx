@@ -219,7 +219,7 @@ describe('CreateFab speed dial', () => {
   it('closes when Escape is pressed', () => {
     render(<Harness pathname="/bins" />);
     fireEvent.click(screen.getByRole('button', { name: /create bin/i }));
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByRole('button', { name: /create bin/i })).toHaveAttribute('aria-expanded', 'false');
   });
 

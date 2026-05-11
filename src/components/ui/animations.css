@@ -110,24 +110,8 @@
 @keyframes fadeInFast { from { opacity: 0; } to { opacity: 1; } }
 
 /* ─── Speed-dial pill animations ─── */
-@keyframes pillRiseFast {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.pill-rise-fast {
-  animation: pillRiseFast 0.18s ease-out;
-}
-
-.pill-rise-fast-delayed {
-  animation: pillRiseFast 0.18s ease-out 50ms backwards;
-}
+.pill-rise-fast { animation: onboardFadeInUp 0.18s ease-out; }
+.pill-rise-fast-delayed { animation: onboardFadeInUp 0.18s ease-out 50ms backwards; }
 
 /* ─── Onboarding Feature Cards ─── */
 .onboarding-feature-card { opacity: 0; animation: onboardFadeInUp 0.35s ease-out forwards; }
