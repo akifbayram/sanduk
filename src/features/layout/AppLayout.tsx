@@ -35,6 +35,8 @@ import { useUserPreferences } from '@/lib/userPreferences';
 import { toggleSidebarCollapsed, useSidebarCollapsed } from '@/lib/useSidebarCollapsed';
 import { cn } from '@/lib/utils';
 import { BottomNav } from './BottomNav';
+import { CreateFab } from './CreateFab';
+import { CreateFabProvider } from './CreateFabContext';
 import { DrawerProvider } from './DrawerContext';
 import { MobileDrawer } from './MobileDrawer';
 import { Sidebar, SidebarContent } from './Sidebar';
@@ -207,6 +209,12 @@ export function AppLayout() {
   return (
     <TagColorsProvider>
     <TourProvider tour={tour}>
+    <CreateFabProvider
+      scanDialogOpen={scanDialogOpen}
+      onboardingActive={onboarding.isOnboarding}
+      thinGateActive={!demoMode && thinGate.needsLocation}
+      tourActive={tour.isActive}
+    >
     <div className="min-h-dvh bg-[var(--bg-base)] text-[var(--text-primary)] transition-colors duration-300">
       {/* Global SVG gradient for AI icon */}
       <svg width="0" height="0" className="absolute" aria-hidden="true">
@@ -243,6 +251,7 @@ export function AppLayout() {
           onAskAi={aiEnabled ? openAskAi : undefined}
         />
       )}
+      <CreateFab />
 
       <ScanDialogContext.Provider value={{ openScanDialog }}>
       <DrawerProvider isOnboarding={onboarding.isOnboarding} onOpen={() => setDrawerOpen(true)}>
@@ -352,6 +361,7 @@ export function AppLayout() {
         <TourBanner appName={settings.appName} onStart={() => tour.start(HIGHLIGHTS_TOUR)} onDismiss={dismissTour} />
       )}
     </div>
+    </CreateFabProvider>
     </TourProvider>
     </TagColorsProvider>
   );
