@@ -430,7 +430,11 @@ export function AccountSection() {
         <SettingsSection label="Connected Accounts" dividerAbove>
           {oauthProviders.map((provider) => {
             const link = oauthLinks.find((l) => l.provider === provider);
-            const providerLabel = provider === 'google' ? 'Google' : 'Apple';
+            const providerLabel = provider === 'google'
+              ? 'Google'
+              : provider === 'apple'
+                ? 'Apple'
+                : authStatus.oidcDisplayName || 'Single Sign-On';
             const canUnlink = oauthLinks.length > 1 || hasPassword;
             const hintId = `${provider}-unlink-hint`;
 

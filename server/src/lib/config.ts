@@ -124,6 +124,29 @@ export const config = Object.freeze({
   appleKeyId: process.env.APPLE_KEY_ID || null,
   applePrivateKey: process.env.APPLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || null,
 
+  // Generic OIDC login (self-hosted + cloud) — single fixed provider slot,
+  // mirrors the AI_PROVIDER pattern. Works with any spec-compliant OpenID
+  // Connect provider via discovery, unlike the hardcoded Google/Apple above.
+  oidcIssuerUrl: (() => {
+    const raw = process.env.OIDC_ISSUER_URL;
+    if (!raw) return null;
+    return raw.replace(/\/+$/, ''); // must match discovery doc's `issuer` exactly
+  })(),
+  oidcClientId: process.env.OIDC_CLIENT_ID || null,
+  oidcClientSecret: process.env.OIDC_CLIENT_SECRET || null,
+  oidcDisplayName: process.env.OIDC_DISPLAY_NAME || null,
+  oidcScopes: (() => {
+    const raw = process.env.OIDC_SCOPES || 'openid email profile';
+    const scopes = raw.split(/\s+/).filter(Boolean);
+    if (!scopes.includes('openid')) scopes.unshift('openid');
+    return scopes.join(' ');
+  })(),
+  // Default matches Google/Apple: reject login when `email_verified` is
+  // missing OR false. Some self-hosted/enterprise IdPs never set this
+  // (optional per spec) — admins who've verified their IdP's emails through
+  // another means can opt in to accepting an absent claim.
+  oidcAllowUnverifiedEmail: parseBool(process.env.OIDC_ALLOW_UNVERIFIED_EMAIL, false),
+
   trialPeriodDays: clamp(parseInt(process.env.TRIAL_PERIOD_DAYS || '7', 10), 1, 90, 7),
   planLimits: Object.freeze({
     // Free tier
@@ -326,6 +349,27 @@ if (config.storageBackend === 's3') {
   if (!config.s3SecretAccessKey) missing.push('S3_SECRET_ACCESS_KEY');
   if (missing.length > 0) {
     throw new Error(`STORAGE_BACKEND=s3 requires: ${missing.join(', ')}`);
+  }
+}
+
+// Validate generic OIDC config at startup. Any one of the three vars being
+// set signals intent to enable it, so partial config is a hard error.
+if (config.oidcIssuerUrl || config.oidcClientId || config.oidcClientSecret) {
+  const missing: string[] = [];
+  if (!config.oidcIssuerUrl) missing.push('OIDC_ISSUER_URL');
+  if (!config.oidcClientId) missing.push('OIDC_CLIENT_ID');
+  if (!config.oidcClientSecret) missing.push('OIDC_CLIENT_SECRET');
+  if (!config.baseUrl) missing.push('BASE_URL');
+  if (missing.length > 0) {
+    throw new Error(`Generic OIDC login requires: ${missing.join(', ')}`);
+  }
+  // https:// only — the discovery document and its listed endpoints are
+  // fetched over this connection with the config as sole trust anchor; a
+  // plain http:// issuer would let an on-path attacker rewrite the discovery
+  // response (redirecting the token exchange, forging a jwks_uri) while
+  // still passing the issuer-match check below.
+  if (!/^https:\/\//.test(config.oidcIssuerUrl!)) {
+    throw new Error('OIDC_ISSUER_URL must start with https://');
   }
 }
 

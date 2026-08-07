@@ -13,6 +13,7 @@ export interface AuthStatusConfig {
   registrationMode: RegistrationMode;
   registrationEnabled: boolean;
   oauthProviders: string[];
+  oidcDisplayName: string | null;
   demoMode: boolean;
   tosVersion: string | null;
   privacyVersion: string | null;
@@ -26,6 +27,7 @@ let authStatusCached: AuthStatusConfig = {
   registrationMode: 'open',
   registrationEnabled: true,
   oauthProviders: [],
+  oidcDisplayName: null,
   demoMode: false,
   tosVersion: null,
   privacyVersion: null,
@@ -109,6 +111,7 @@ async function _doInit(): Promise<void> {
       registrationMode: mode,
       registrationEnabled: data.registrationEnabled !== false,
       oauthProviders: Array.isArray(data.oauthProviders) ? data.oauthProviders : [],
+      oidcDisplayName: typeof data.oidcDisplayName === 'string' ? data.oidcDisplayName : null,
       demoMode: data.demoMode === true,
       tosVersion: typeof data.tosVersion === 'string' ? data.tosVersion : null,
       privacyVersion: typeof data.privacyVersion === 'string' ? data.privacyVersion : null,

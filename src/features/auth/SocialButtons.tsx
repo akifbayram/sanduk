@@ -1,4 +1,10 @@
+import { KeyRound } from 'lucide-react';
 import { cn, focusRing } from '@/lib/utils';
+
+const BUTTON_CLASSES = cn(
+  'flex items-center justify-center gap-2.5 w-full h-11 rounded-[var(--radius-sm)] border border-[var(--border-flat)] bg-[var(--bg-base)] hover:bg-[var(--bg-hover)] transition-colors text-[15px] font-medium text-[var(--text-primary)]',
+  focusRing,
+);
 
 const PROVIDERS = {
   google: {
@@ -24,25 +30,27 @@ const PROVIDERS = {
 
 interface SocialButtonsProps {
   providers: string[];
+  oidcDisplayName?: string | null;
 }
 
-export function SocialButtons({ providers }: SocialButtonsProps) {
+export function SocialButtons({ providers, oidcDisplayName }: SocialButtonsProps) {
   if (providers.length === 0) return null;
 
   return (
     <div className="space-y-2">
       {providers.map((provider) => {
+        if (provider === 'oidc') {
+          return (
+            <a key="oidc" href="/api/auth/oauth/oidc" className={BUTTON_CLASSES}>
+              <KeyRound className="h-5 w-5" aria-hidden="true" />
+              {`Continue with ${oidcDisplayName || 'Single Sign-On'}`}
+            </a>
+          );
+        }
         const p = PROVIDERS[provider as keyof typeof PROVIDERS];
         if (!p) return null;
         return (
-          <a
-            key={provider}
-            href={`/api/auth/oauth/${provider}`}
-            className={cn(
-              'flex items-center justify-center gap-2.5 w-full h-11 rounded-[var(--radius-sm)] border border-[var(--border-flat)] bg-[var(--bg-base)] hover:bg-[var(--bg-hover)] transition-colors text-[15px] font-medium text-[var(--text-primary)]',
-              focusRing,
-            )}
-          >
+          <a key={provider} href={`/api/auth/oauth/${provider}`} className={BUTTON_CLASSES}>
             {p.icon}
             {p.label}
           </a>

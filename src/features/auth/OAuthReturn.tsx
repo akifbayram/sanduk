@@ -16,6 +16,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: 'Sign-in expired — please try again',
   token_invalid: 'Authentication failed — please try again',
   forbidden: 'Sign-in not permitted for this account',
+  discovery_failed: 'Could not reach the sign-in provider — please try again later',
+  issuer_mismatch: 'Sign-in provider configuration error — contact your administrator',
+  missing_nonce: 'Sign-in expired — please try again',
 };
 
 export function useOAuthReturn() {
