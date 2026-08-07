@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useTerminology } from '@/lib/terminology';
-import { useClickOutside } from '@/lib/useClickOutside';
 import { usePopover } from '@/lib/usePopover';
 import { AreaActionMenu } from './AreaActionMenu';
 import { useInlineEdit } from './useInlineEdit';
@@ -23,7 +22,6 @@ export function AreaRow({ id, name, binCount, isAdmin, onNavigate, onRename, onD
   const t = useTerminology();
   const { visible, animating, close, toggle } = usePopover();
   const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, close);
 
   const { editing, editValue, saving, startEdit: _startEdit, cancelEdit, setEditValue, handleSave, handleKeyDown } = useInlineEdit({
     currentName: name,
@@ -102,6 +100,8 @@ export function AreaRow({ id, name, binCount, isAdmin, onNavigate, onRename, onD
           <AreaActionMenu
             visible={visible}
             animating={animating}
+            triggerRef={menuRef}
+            onClose={close}
             onRename={startEdit}
             onDelete={() => { close(); onDelete(id, name, binCount); }}
           />

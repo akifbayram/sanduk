@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useTerminology } from '@/lib/terminology';
-import { useClickOutside } from '@/lib/useClickOutside';
 import { usePopover } from '@/lib/usePopover';
 import { cn } from '@/lib/utils';
 import { AreaActionMenu } from './AreaActionMenu';
@@ -34,9 +33,8 @@ interface CreateCardProps {
 
 export function AreaCard({ id, name, binCount, descendantBinCount, depth, hasChildren, isAdmin, onNavigate, onRename, onDelete }: AreaCardProps) {
   const t = useTerminology();
-  const { visible, animating, isOpen, close, toggle } = usePopover();
+  const { visible, animating, close, toggle } = usePopover();
   const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, close);
 
   const { editing, editValue, saving, startEdit: _startEdit, cancelEdit, setEditValue, handleSave, handleKeyDown } = useInlineEdit({
     currentName: name,
@@ -98,10 +96,7 @@ export function AreaCard({ id, name, binCount, descendantBinCount, depth, hasChi
       aria-label={name}
       onClick={() => onNavigate(id)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(id); } }}
-      className={cn(
-        "flat-card rounded-[var(--radius-lg)] p-4 cursor-pointer hover:bg-[var(--bg-hover)] transition-colors duration-150 active:bg-[var(--bg-active)] text-left relative group",
-        isOpen && "z-10"
-      )}
+      className="flat-card rounded-[var(--radius-lg)] p-4 cursor-pointer hover:bg-[var(--bg-hover)] transition-colors duration-150 active:bg-[var(--bg-active)] text-left relative group"
       style={indentPx > 0 ? { marginLeft: indentPx } : undefined}
     >
       <div className="flex items-center gap-3">
@@ -141,6 +136,8 @@ export function AreaCard({ id, name, binCount, descendantBinCount, depth, hasChi
           <AreaActionMenu
             visible={visible}
             animating={animating}
+            triggerRef={menuRef}
+            onClose={close}
             onRename={startEdit}
             onDelete={() => { close(); onDelete(id, name, binCount, undefined, hasChildren ? descendantBinCount : undefined); }}
           />
