@@ -24,7 +24,7 @@ const mockUseBinActivity = vi.mocked(useBinActivity);
 function entry(i: number): ActivityLogEntry {
   return {
     id: `e${i}`, location_id: 'loc-1', user_id: 'u1',
-    user_name: 'user', display_name: `User ${i}`,
+    user_name: 'user', display_name: `User${i}`,
     action: 'update', entity_type: 'bin', entity_id: 'bin-1',
     entity_name: 'Bin', changes: null,
     auth_method: 'jwt', api_key_name: null,
@@ -89,9 +89,9 @@ describe('BinDetailActivitySection', () => {
 
     renderWithRouter(<BinDetailActivitySection binId="bin-1" />);
 
-    expect(screen.getAllByText('User 0').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('User 4').length).toBeGreaterThan(0);
-    expect(screen.queryByText('User 5')).toBeNull();
+    expect(screen.getAllByText('User0').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('User4').length).toBeGreaterThan(0);
+    expect(screen.queryByText('User5')).toBeNull();
   });
 
   it('shows "Show all" when there are more than 5 entries and reveals remaining on click', async () => {
@@ -108,8 +108,8 @@ describe('BinDetailActivitySection', () => {
     const viewAll = screen.getByRole('button', { name: /show all/i });
     await user.click(viewAll);
 
-    expect(screen.getAllByText('User 5').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('User 9').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('User5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('User9').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /show less/i })).toBeInTheDocument();
   });
 
@@ -154,7 +154,7 @@ describe('BinDetailActivitySection', () => {
     await user.click(screen.getByRole('button', { name: /show all/i }));
     await user.click(screen.getByRole('button', { name: /show less/i }));
 
-    expect(screen.queryByText('User 5')).toBeNull();
+    expect(screen.queryByText('User5')).toBeNull();
     expect(screen.getByRole('button', { name: /show all/i })).toBeInTheDocument();
   });
 
