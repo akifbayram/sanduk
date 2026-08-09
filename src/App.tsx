@@ -1,6 +1,7 @@
 import { AlertCircle, ChevronLeft, Home, RefreshCw } from 'lucide-react';
 import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { LanguageSync } from '@/components/LanguageSync';
 import { Button } from '@/components/ui/button';
 import { ToastProvider, useToast } from '@/components/ui/toast';
 import { AuthGuard } from '@/features/auth/AuthGuard';
@@ -386,6 +387,7 @@ export default function App() {
         <NavigationGuardProvider>
         <ToastProvider>
           <AuthProvider>
+            <LanguageSync />
             <SWUpdateNotifier />
             <PlanErrorNotifier />
             <Routes>

@@ -1,5 +1,6 @@
 import { KeyRound, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { cycleThemePreference, useTheme } from '@/lib/theme';
 import { getErrorMessage } from '@/lib/utils';
 
 export function ResetPasswordPage() {
+  const { t } = useTranslation('auth');
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const { showToast } = useToast();
@@ -27,7 +29,7 @@ export function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      showToast({ message: 'Passwords do not match', variant: 'error' });
+      showToast({ message: t('resetPassword.passwordsNoMatch', { defaultValue: 'Passwords do not match' }), variant: 'error' });
       return;
     }
     setLoading(true);
@@ -39,7 +41,7 @@ export function ResetPasswordPage() {
       setSuccess(true);
     } catch (err) {
       showToast({
-        message: getErrorMessage(err, 'Failed to reset password'),
+        message: getErrorMessage(err, t('resetPassword.failed', { defaultValue: 'Failed to reset password' })),
         variant: 'error',
       });
     } finally {
@@ -52,7 +54,9 @@ export function ResetPasswordPage() {
       <button
         type="button"
         onClick={() => setThemePreference(cycleThemePreference(preference))}
-        aria-label={`Switch theme, currently ${preference}`}
+        aria-label={t('themeToggle', {
+            defaultValue: 'Switch theme, currently {{theme}}',
+            theme: preference })}
         className="absolute top-4 right-4 z-10 p-2.5 rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] transition-colors"
       >
         <ThemeIcon className="h-5 w-5" />
@@ -63,7 +67,7 @@ export function ResetPasswordPage() {
           <h1 className="font-heading text-[28px] font-bold text-[var(--text-primary)] tracking-tight">
             {settings.appName}
           </h1>
-          <p className="text-[14px] text-[var(--text-tertiary)]">Set a new password</p>
+          <p className="text-[14px] text-[var(--text-tertiary)]">{t('resetPassword.tagline', { defaultValue: 'Set a new password' })}</p>
         </div>
 
         {!token ? (
@@ -71,17 +75,17 @@ export function ResetPasswordPage() {
             <Card>
               <CardContent className="py-6 text-center space-y-4">
                 <p className="text-[15px] text-[var(--text-secondary)]">
-                  Invalid or expired reset link.
+                  {t('resetPassword.invalidLink', { defaultValue: 'Invalid or expired reset link.' })}
                 </p>
                 <Link to="/forgot-password" className="text-[var(--accent)] font-medium hover:underline text-[14px]">
-                  Request a new link
+                  {t('resetPassword.requestNewLink', { defaultValue: 'Request a new link' })}
                 </Link>
               </CardContent>
             </Card>
             <p className="text-center text-[14px] text-[var(--text-secondary)]">
-              Remember your password?{' '}
+              {t('resetPassword.rememberPassword', { defaultValue: 'Remember your password?' })}{' '}
               <Link to="/login" className="text-[var(--accent)] font-medium hover:underline">
-                Sign in
+                {t('resetPassword.signIn', { defaultValue: 'Sign in' })}
               </Link>
             </p>
           </>
@@ -89,11 +93,11 @@ export function ResetPasswordPage() {
           <Card>
             <CardContent className="py-6 text-center space-y-4">
               <p className="text-[15px] text-[var(--text-primary)] font-medium">
-                Password reset successfully!
+                {t('resetPassword.success', { defaultValue: 'Password reset successfully!' })}
               </p>
               <Link to="/login">
                 <Button className="w-full rounded-[var(--radius-md)] h-11 text-[15px]">
-                  Sign In
+                  {t('resetPassword.signInButton', { defaultValue: 'Sign In' })}
                 </Button>
               </Link>
             </CardContent>
@@ -103,29 +107,29 @@ export function ResetPasswordPage() {
             <CardContent className="py-6">
               <form onSubmit={handleSubmit} className="space-y-5">
                 <p className="text-[14px] text-[var(--text-secondary)]">
-                  Enter your new password below.
+                  {t('resetPassword.instructions', { defaultValue: 'Enter your new password below.' })}
                 </p>
                 <div className="space-y-2">
-                  <Label htmlFor="new-password">New Password</Label>
+                  <Label htmlFor="new-password">{t('resetPassword.newPasswordLabel', { defaultValue: 'New Password' })}</Label>
                   <Input
                     id="new-password"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="At least 8 characters"
+                    placeholder={t('resetPassword.newPasswordPlaceholder', { defaultValue: 'At least 8 characters' })}
                     autoComplete="new-password"
                     autoFocus
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Label htmlFor="confirm-password">{t('resetPassword.confirmPasswordLabel', { defaultValue: 'Confirm Password' })}</Label>
                   <Input
                     id="confirm-password"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat password"
+                    placeholder={t('resetPassword.confirmPasswordPlaceholder', { defaultValue: 'Repeat password' })}
                     autoComplete="new-password"
                     required
                   />
@@ -136,7 +140,7 @@ export function ResetPasswordPage() {
                   className="w-full rounded-[var(--radius-md)] h-11 text-[15px]"
                 >
                   <KeyRound className="h-4 w-4 mr-2" />
-                  {loading ? 'Resetting...' : 'Reset Password'}
+                  {loading ? t('resetPassword.resetting', { defaultValue: 'Resetting...' }) : t('resetPassword.reset', { defaultValue: 'Reset Password' })}
                 </Button>
               </form>
             </CardContent>

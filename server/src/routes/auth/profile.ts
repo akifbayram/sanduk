@@ -16,9 +16,17 @@ import { authenticate, invalidateUserStatusCache } from '../../middleware/auth.j
 const log = createLogger('auth');
 const router = Router();
 
+// Hardcoded allowlist mirroring SUPPORTED_LANGUAGES codes in src/lib/i18n.ts.
+// With only 2 locales, adding a third means shipping translation JSON anyway
+// (a code change regardless), so this stays a code constant rather than a
+// DB-configurable list — client and server are separate builds with no shared
+// package. Keep this array in sync with src/lib/i18n.ts's SUPPORTED_LANGUAGES;
+// src/lib/__tests__/languageAllowlist.test.ts fails CI if they drift apart.
+const SUPPORTED_LANGUAGE_CODES = ['en', 'nb'];
+
 router.get('/me', authenticate, asyncHandler(async (req, res) => {
   const user = await queryOne<Record<string, any>>(
-    'SELECT id, display_name, email, avatar_path, active_location_id, created_at, updated_at, plan, sub_status, active_until, is_admin, password_hash, deletion_requested_at, deletion_scheduled_at, current_tos_version, current_privacy_version, marketing_opt_in FROM users WHERE id = $1',
+    'SELECT id, display_name, email, avatar_path, active_location_id, created_at, updated_at, plan, sub_status, active_until, is_admin, password_hash, deletion_requested_at, deletion_scheduled_at, current_tos_version, current_privacy_version, marketing_opt_in, language FROM users WHERE id = $1',
     [req.user!.id],
     'User not found',
   );
@@ -49,15 +57,20 @@ router.get('/me', authenticate, asyncHandler(async (req, res) => {
     currentTosVersion: user.current_tos_version || null,
     currentPrivacyVersion: user.current_privacy_version || null,
     marketingOptIn: !!user.marketing_opt_in,
+    language: user.language || null,
   });
 }));
 
-// PUT /api/auth/profile — update display name and/or email
+// PUT /api/auth/profile — update display name, email, and/or language
 router.put('/profile', authenticate, asyncHandler(async (req, res) => {
-  const { displayName, email } = req.body;
+  const { displayName, email, language } = req.body;
 
   if (displayName !== undefined) {
     validateDisplayName(displayName);
+  }
+
+  if (language !== undefined && language !== null && !SUPPORTED_LANGUAGE_CODES.includes(language)) {
+    throw new ValidationError('Unsupported language code');
   }
 
   let normalizedEmail: string | undefined;
@@ -83,6 +96,10 @@ router.put('/profile', authenticate, asyncHandler(async (req, res) => {
     updates.push(`email = $${idx++}`);
     values.push(email === '' ? null : normalizedEmail ?? null);
   }
+  if (language !== undefined) {
+    updates.push(`language = $${idx++}`);
+    values.push(language);
+  }
 
   if (updates.length === 0) {
     throw new ValidationError('No fields to update');
@@ -94,7 +111,7 @@ router.put('/profile', authenticate, asyncHandler(async (req, res) => {
   let result: import('../../db.js').QueryResult<Record<string, unknown>>;
   try {
     result = await query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, display_name, email, avatar_path, created_at, updated_at`,
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, display_name, email, avatar_path, created_at, updated_at, language`,
       values
     );
   } catch (err: unknown) {
@@ -104,7 +121,7 @@ router.put('/profile', authenticate, asyncHandler(async (req, res) => {
     throw err;
   }
 
-  const user = result.rows[0] as { id: string; display_name: string; email: string | null; avatar_path: string | null; created_at: string; updated_at: string };
+  const user = result.rows[0] as { id: string; display_name: string; email: string | null; avatar_path: string | null; created_at: string; updated_at: string; language: string | null };
   res.json({
     id: user.id,
     displayName: user.display_name,
@@ -112,6 +129,7 @@ router.put('/profile', authenticate, asyncHandler(async (req, res) => {
     avatarUrl: user.avatar_path ? `/api/auth/avatar/${user.id}` : null,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
+    language: user.language || null,
   });
 
   // Fire welcome email when user sets email for the first time (cloud mode)

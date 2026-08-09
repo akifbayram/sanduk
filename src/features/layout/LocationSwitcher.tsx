@@ -1,5 +1,6 @@
 import { Check, ChevronDown, MapPin } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { usePopover } from '@/lib/usePopover';
@@ -13,6 +14,7 @@ interface LocationSwitcherProps {
 }
 
 export function LocationSwitcher({ locations, activeLocationId, onLocationChange }: LocationSwitcherProps) {
+  const { t } = useTranslation('common');
   const { visible, animating, isOpen, close, toggle } = usePopover();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -36,7 +38,7 @@ export function LocationSwitcher({ locations, activeLocationId, onLocationChange
       <button
         type="button"
         onClick={toggle}
-        aria-label="Switch location"
+        aria-label={t('nav.switchLocation', { defaultValue: 'Switch location' })}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={cn(
@@ -47,7 +49,7 @@ export function LocationSwitcher({ locations, activeLocationId, onLocationChange
         )}
       >
         <MapPin className="h-5 w-5 text-[var(--text-tertiary)] shrink-0" />
-        <span className="flex-1 truncate">{active?.name ?? 'Select location'}</span>
+        <span className="flex-1 truncate">{active?.name ?? t('nav.selectLocation', { defaultValue: 'Select location' })}</span>
         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-[var(--bg-hover)] text-[var(--text-secondary)] shrink-0">
           {locations.length}
         </span>

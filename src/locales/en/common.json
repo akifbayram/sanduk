@@ -1,0 +1,57 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "install": "Install",
+    "upgrade": "Upgrade"
+  },
+  "nav": {
+    "mainNavigation": "Main navigation",
+    "navigation": "Navigation",
+    "skipToMain": "Skip to main content",
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "bins": "Bins",
+    "locations": "Locations",
+    "items": "Items",
+    "checkedOut": "Checked Out",
+    "shoppingList": "Shopping List",
+    "tags": "Tags",
+    "print": "Print",
+    "scan": "Scan",
+    "reorganize": "Reorganize",
+    "askAi": "Ask AI",
+    "more": "More",
+    "manage": "Manage",
+    "tools": "Tools",
+    "settings": "Settings",
+    "signOut": "Sign Out",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "switchLocation": "Switch location",
+    "selectLocation": "Select location"
+  },
+  "createFab": {
+    "addFromPhotos": "Add from photos",
+    "createOptions": "Create options",
+    "newBinPrefix": "New",
+    "createBinPrefix": "Create"
+  },
+  "install": {
+    "prompt": "Install {{appName}}",
+    "dismiss": "Dismiss install prompt"
+  },
+  "plan": {
+    "overLimitBanner": "You're over your plan limits. Reduce usage or upgrade to resume editing.",
+    "proBadge": "Pro"
+  },
+  "tour": {
+    "thisTour": "This tour",
+    "needsContent": "{{title}} needs some content on this page first."
+  },
+  "itemCount_one": "{{count}} item",
+  "itemCount_other": "{{count}} items"
+}

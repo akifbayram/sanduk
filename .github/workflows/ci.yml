@@ -41,6 +41,9 @@ jobs:
       - name: Type check (client)
         run: npx tsc --noEmit
 
+      - name: i18n lint (missing/unused translation keys)
+        run: npx i18next-cli lint
+
       - name: Type check (server)
         run: npx tsc --noEmit
         working-directory: server

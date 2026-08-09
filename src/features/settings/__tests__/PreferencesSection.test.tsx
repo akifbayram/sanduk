@@ -12,6 +12,17 @@ vi.mock('@/lib/theme', () => ({
   })),
 }));
 
+vi.mock('@/lib/auth', () => ({
+  useAuth: vi.fn(() => ({
+    user: { id: 'u1', displayName: 'Test', email: 't@test.local', language: null },
+    updateUser: vi.fn(),
+  })),
+}));
+
+vi.mock('@/lib/api', () => ({
+  apiFetch: vi.fn(() => Promise.resolve({})),
+}));
+
 vi.mock('@/lib/userPreferences', async () => {
   const actual = await vi.importActual<typeof import('@/lib/userPreferences')>(
     '@/lib/userPreferences',

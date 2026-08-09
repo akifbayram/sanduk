@@ -3,12 +3,16 @@ import type { OptionGroupOption } from '@/components/ui/option-group';
 import { OptionGroup } from '@/components/ui/option-group';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/components/ui/toast';
 import {
   ITEM_PAGE_SIZE_OPTIONS,
   type PageSizeValue,
   setItemPageSize,
   useItemPageSize,
 } from '@/features/bins/useItemPageSize';
+import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { SUPPORTED_LANGUAGES, setLanguage, useLanguage } from '@/lib/language';
 import { useTerminology } from '@/lib/terminology';
 import type { ThemePreference } from '@/lib/theme';
 import { useTheme } from '@/lib/theme';
@@ -36,7 +40,23 @@ export function PreferencesSection() {
   const { preference, setThemePreference } = useTheme();
   const { preferences, updatePreferences } = useUserPreferences();
   const { pageSize: itemPageSize } = useItemPageSize();
-  const t = useTerminology();
+  const term = useTerminology();
+  const { user, updateUser } = useAuth();
+  const { language } = useLanguage();
+  const { showToast } = useToast();
+
+  function handleLanguageChange(code: string) {
+    const previousLanguage = language;
+    const previousUserLanguage = user?.language ?? null;
+    setLanguage(code);
+    if (user) updateUser({ ...user, language: code });
+    apiFetch('/api/auth/profile', { method: 'PUT', body: { language: code } }).catch((err) => {
+      console.error('Failed to persist language preference', err);
+      setLanguage(previousLanguage);
+      if (user) updateUser({ ...user, language: previousUserLanguage });
+      showToast({ message: 'Failed to save language preference', variant: 'error' });
+    });
+  }
 
   return (
     <>
@@ -57,18 +77,31 @@ export function PreferencesSection() {
             />
           }
         />
+        <SettingsRow
+          label="Language"
+          control={
+            <Select<string>
+              value={language}
+              options={SUPPORTED_LANGUAGES.map((l) => ({ value: l.code, label: l.label }))}
+              onChange={handleLanguageChange}
+              ariaLabel="Language"
+              size="sm"
+              align="right"
+            />
+          }
+        />
       </SettingsSection>
 
       <SettingsSection label="Display" dividerAbove>
         <SettingsRow
-          label={`Items per ${t.bin} page`}
+          label={`Items per ${term.bin} page`}
           description={`Number of items shown before pagination. Select "All on one page" to disable.`}
           control={
             <Select<PageSizeValue>
               value={itemPageSize}
               options={ITEM_PAGE_SIZE_SELECT_OPTIONS}
               onChange={setItemPageSize}
-              ariaLabel={`Items per ${t.bin} page`}
+              ariaLabel={`Items per ${term.bin} page`}
               size="sm"
               align="right"
             />
@@ -113,7 +146,7 @@ export function PreferencesSection() {
         />
         <SettingsRow
           label="Manual code lookup"
-          description={`Record when you look up a ${t.bin} by typing its code`}
+          description={`Record when you look up a ${term.bin} by typing its code`}
           border={false}
           control={
             <Switch
@@ -123,8 +156,8 @@ export function PreferencesSection() {
           }
         />
         <SettingsRow
-          label={`View ${t.bin}`}
-          description={`Record every time you open a ${t.bin} detail page`}
+          label={`View ${term.bin}`}
+          description={`Record every time you open a ${term.bin} detail page`}
           border={false}
           control={
             <Switch
@@ -134,8 +167,8 @@ export function PreferencesSection() {
           }
         />
         <SettingsRow
-          label={`Modify ${t.bin}`}
-          description={`Record when you edit a ${t.bin}'s contents or metadata`}
+          label={`Modify ${term.bin}`}
+          description={`Record when you edit a ${term.bin}'s contents or metadata`}
           border={false}
           control={
             <Switch

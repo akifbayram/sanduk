@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -19,6 +20,7 @@ export function ConsentCheckboxes({
   marketingVisible,
   idPrefix,
 }: ConsentCheckboxesProps) {
+  const { t } = useTranslation('auth');
   const tosId = `${idPrefix}-consent-tos`;
   const marketingId = `${idPrefix}-consent-marketing`;
   const labelClass =
@@ -33,18 +35,18 @@ export function ConsentCheckboxes({
           id={tosId}
           checked={tosAccepted}
           onCheckedChange={(v) => onTosChange(Boolean(v))}
-          aria-label="Accept Terms of Service and Privacy Policy"
+          aria-label={t('consent.acceptAriaLabel', { defaultValue: 'Accept Terms of Service and Privacy Policy' })}
         />
         <span>
-          I agree to the{' '}
-          <Link to="/terms" target="_blank" rel="noopener noreferrer" className={linkClass}>
-            Terms of Service
-          </Link>
-          {' '}and{' '}
-          <Link to="/privacy" target="_blank" rel="noopener noreferrer" className={linkClass}>
-            Privacy Policy
-          </Link>
-          .
+          <Trans
+            t={t}
+            i18nKey="consent.agreement"
+            defaults="I agree to the <tos>Terms of Service</tos> and <privacy>Privacy Policy</privacy>."
+            components={{
+              tos: <Link to="/terms" target="_blank" rel="noopener noreferrer" className={linkClass} />,
+              privacy: <Link to="/privacy" target="_blank" rel="noopener noreferrer" className={linkClass} />,
+            }}
+          />
         </span>
       </label>
 
@@ -54,9 +56,9 @@ export function ConsentCheckboxes({
             id={marketingId}
             checked={marketingOptIn}
             onCheckedChange={(v) => onMarketingChange(Boolean(v))}
-            aria-label="Send me product updates"
+            aria-label={t('consent.marketingAriaLabel', { defaultValue: 'Send me product updates' })}
           />
-          <span>Send me occasional product updates. (Optional)</span>
+          <span>{t('consent.marketingLabel', { defaultValue: 'Send me occasional product updates. (Optional)' })}</span>
         </label>
       )}
     </>

@@ -1,5 +1,6 @@
 import { AlertTriangle, Check, Monitor, Moon, Sun, UserPlus, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { ConsentCheckboxes } from './ConsentCheckboxes';
 import { SocialButtons, SocialDivider } from './SocialButtons';
 
 export function RegisterPage() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { register } = useAuth();
@@ -56,10 +58,10 @@ export function RegisterPage() {
   useEffect(() => {
     if (!statusLoaded) return;
     if (!authStatus.registrationEnabled || authStatus.registrationMode === 'closed') {
-      showToast({ message: 'Registration is currently disabled', variant: 'warning' });
+      showToast({ message: t('register.disabled', { defaultValue: 'Registration is currently disabled' }), variant: 'warning' });
       navigate('/login');
     }
-  }, [statusLoaded, authStatus.registrationEnabled, authStatus.registrationMode, navigate, showToast]);
+  }, [statusLoaded, authStatus.registrationEnabled, authStatus.registrationMode, navigate, showToast, t]);
 
   // Debounced invite code preview with abort on change
   useEffect(() => {
@@ -103,45 +105,45 @@ export function RegisterPage() {
   const fieldErrors = useMemo(() => {
     const errors: Record<string, string | undefined> = {};
     if (touched.email && !email.trim()) {
-      errors.email = 'Email is required';
+      errors.email = t('register.errors.emailRequired', { defaultValue: 'Email is required' });
     } else if (email && !EMAIL_REGEX.test(email)) {
-      errors.email = 'Enter a valid email address';
+      errors.email = t('register.errors.emailInvalid', { defaultValue: 'Enter a valid email address' });
     }
     if (!displayName.trim() && touched.displayName) {
-      errors.displayName = 'Display name is required';
+      errors.displayName = t('register.errors.displayNameRequired', { defaultValue: 'Display name is required' });
     }
     if (confirmPassword && password !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+      errors.confirmPassword = t('register.errors.passwordsNoMatch', { defaultValue: 'Passwords do not match' });
     }
     if (registrationMode === 'invite' && touched.inviteCode && !inviteCode.trim()) {
-      errors.inviteCode = 'An invite code is required to register';
+      errors.inviteCode = t('register.errors.inviteCodeRequired', { defaultValue: 'An invite code is required to register' });
     }
     return errors;
-  }, [email, displayName, password, confirmPassword, inviteCode, registrationMode, touched.email, touched.displayName, touched.inviteCode]);
+  }, [email, displayName, password, confirmPassword, inviteCode, registrationMode, touched.email, touched.displayName, touched.inviteCode, t]);
 
   function validate(): string | null {
     if (!email.trim()) {
       emailRef.current?.focus();
-      return 'Email is required';
+      return t('register.errors.emailRequired', { defaultValue: 'Email is required' });
     }
     if (!EMAIL_REGEX.test(email)) {
       emailRef.current?.focus();
-      return 'Please enter a valid email address';
+      return t('register.errors.emailInvalid', { defaultValue: 'Enter a valid email address' });
     }
     if (!displayName.trim()) {
-      return 'Display name is required';
+      return t('register.errors.displayNameRequired', { defaultValue: 'Display name is required' });
     }
     if (!allChecksPassing(passwordChecks)) {
       passwordRef.current?.focus();
-      return 'Password must meet all requirements';
+      return t('register.errors.passwordRequirements', { defaultValue: 'Password must meet all requirements' });
     }
     if (password !== confirmPassword) {
       confirmRef.current?.focus();
-      return 'Passwords do not match';
+      return t('register.errors.passwordsNoMatch', { defaultValue: 'Passwords do not match' });
     }
     if (registrationMode === 'invite' && !inviteCode.trim()) {
       inviteRef.current?.focus();
-      return 'An invite code is required to register';
+      return t('register.errors.inviteCodeRequired', { defaultValue: 'An invite code is required to register' });
     }
     return null;
   }
@@ -166,7 +168,7 @@ export function RegisterPage() {
       navigate('/');
     } catch (err) {
       showToast({
-        message: getErrorMessage(err, 'Registration failed'),
+        message: getErrorMessage(err, t('register.errors.registrationFailed', { defaultValue: 'Registration failed' })),
         variant: 'error',
       });
     } finally {
@@ -179,7 +181,9 @@ export function RegisterPage() {
       <button
         type="button"
         onClick={() => setThemePreference(cycleThemePreference(preference))}
-        aria-label={`Switch theme, currently ${preference}`}
+        aria-label={t('themeToggle', {
+            defaultValue: 'Switch theme, currently {{theme}}',
+            theme: preference })}
         className={cn(
           'absolute top-4 right-4 z-10 p-3 rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] transition-colors',
           focusRing
@@ -193,14 +197,14 @@ export function RegisterPage() {
           <h1 className="font-heading text-[28px] font-bold text-[var(--text-primary)] tracking-tight">
             {settings.appName}
           </h1>
-          <p className="text-[14px] text-[var(--text-tertiary)]">Create your account</p>
+          <p className="text-[14px] text-[var(--text-tertiary)]">{t('register.tagline', { defaultValue: 'Create your account' })}</p>
         </div>
 
         {invitePreview && (
           <div className="flat-card rounded-[var(--radius-lg)] flex items-center gap-3 px-4 py-3 text-[14px]">
             <Users className="h-5 w-5 text-[var(--accent)] shrink-0" />
             <span>
-              You've been invited to join <strong>{invitePreview.name}</strong>
+              {t('register.invitedTo', { defaultValue: 'You\'ve been invited to join' })} <strong>{invitePreview.name}</strong>
               <span className="text-[var(--text-tertiary)]">
                 {' · '}
                 {(() => {
@@ -209,11 +213,11 @@ export function RegisterPage() {
                   const nonViewerMembers = totalMembers - viewers;
                   return (
                     <>
-                      {nonViewerMembers} {nonViewerMembers === 1 ? 'member' : 'members'}
+                      {t('register.member', { count: nonViewerMembers, defaultValue: '{{count}} members' })}
                       {viewers > 0 && (
                         <>
                           {', '}
-                          {viewers} {viewers === 1 ? 'viewer' : 'viewers'}
+                          {t('register.viewer', { count: viewers, defaultValue: '{{count}} viewers' })}
                         </>
                       )}
                     </>
@@ -227,8 +231,8 @@ export function RegisterPage() {
           <div className="flat-card rounded-[var(--radius-lg)] flex items-center gap-3 px-4 py-3 text-[14px] bg-[var(--color-warning-soft)]">
             <AlertTriangle className="h-5 w-5 text-[var(--color-warning)] shrink-0" />
             <span>
-              This invite code is invalid or expired.{' '}
-              <span className="text-[var(--text-tertiary)]">Ask your team for a new one.</span>
+              {t('register.inviteInvalid', { defaultValue: 'This invite code is invalid or expired.' })}{' '}
+              <span className="text-[var(--text-tertiary)]">{t('register.askTeamForNew', { defaultValue: 'Ask your team for a new one.' })}</span>
             </span>
           </div>
         )}
@@ -256,9 +260,9 @@ export function RegisterPage() {
                 <form onSubmit={handleSubmit} noValidate>
                   {/* Account details */}
                   <fieldset className="space-y-4">
-                    <legend className="sr-only">Account details</legend>
+                    <legend className="sr-only">{t('register.accountDetailsLegend', { defaultValue: 'Account details' })}</legend>
                     <div className="space-y-2">
-                      <Label htmlFor="reg-email">Email</Label>
+                      <Label htmlFor="reg-email">{t('register.emailLabel', { defaultValue: 'Email' })}</Label>
                       <Input
                         ref={emailRef}
                         id="reg-email"
@@ -266,7 +270,7 @@ export function RegisterPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         onBlur={() => markTouched('email')}
-                        placeholder="Enter your email"
+                        placeholder={t('register.emailPlaceholder', { defaultValue: 'Enter your email' })}
                         autoComplete="email"
                         autoFocus
                         required
@@ -279,13 +283,13 @@ export function RegisterPage() {
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="reg-display-name">Display Name</Label>
+                      <Label htmlFor="reg-display-name">{t('register.displayNameLabel', { defaultValue: 'Display Name' })}</Label>
                       <Input
                         id="reg-display-name"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         onBlur={() => markTouched('displayName')}
-                        placeholder="How you appear to others"
+                        placeholder={t('register.displayNamePlaceholder', { defaultValue: 'How you appear to others' })}
                         autoComplete="name"
                         enterKeyHint="next"
                         aria-invalid={touched.displayName && !!fieldErrors.displayName}
@@ -301,15 +305,15 @@ export function RegisterPage() {
 
                   {/* Password */}
                   <fieldset className="space-y-4">
-                    <legend className="sr-only">Password</legend>
+                    <legend className="sr-only">{t('register.passwordLegend', { defaultValue: 'Password' })}</legend>
                     <div className="space-y-2">
-                      <Label htmlFor="reg-password">Password</Label>
+                      <Label htmlFor="reg-password">{t('register.passwordLabel', { defaultValue: 'Password' })}</Label>
                       <PasswordInput
                         ref={passwordRef}
                         id="reg-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Min 8 chars, mixed case & number"
+                        placeholder={t('register.passwordPlaceholder', { defaultValue: 'Min 8 chars, mixed case & number' })}
                         autoComplete="new-password"
                         required
                         enterKeyHint="next"
@@ -322,9 +326,9 @@ export function RegisterPage() {
                     </div>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <Label htmlFor="reg-confirm">Confirm Password</Label>
+                        <Label htmlFor="reg-confirm">{t('register.confirmPasswordLabel', { defaultValue: 'Confirm Password' })}</Label>
                         {passwordsMatch && (
-                          <Check className="h-3.5 w-3.5 text-[var(--color-success)] animate-check-pop" aria-label="Passwords match" />
+                          <Check className="h-3.5 w-3.5 text-[var(--color-success)] animate-check-pop" aria-label={t('register.passwordsMatch', { defaultValue: 'Passwords match' })} />
                         )}
                       </div>
                       <PasswordInput
@@ -333,7 +337,7 @@ export function RegisterPage() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         onBlur={() => markTouched('confirmPassword')}
-                        placeholder="Repeat password"
+                        placeholder={t('register.confirmPasswordPlaceholder', { defaultValue: 'Repeat password' })}
                         autoComplete="new-password"
                         required
                         enterKeyHint="next"
@@ -350,10 +354,10 @@ export function RegisterPage() {
 
                   {/* Invite code */}
                   <fieldset className="space-y-4">
-                    <legend className="sr-only">Invitation</legend>
+                    <legend className="sr-only">{t('register.invitationLegend', { defaultValue: 'Invitation' })}</legend>
                     <div className="space-y-2">
                       <Label htmlFor="reg-invite">
-                        Invite Code{registrationMode !== 'invite' && <> <span className="font-normal text-[var(--text-tertiary)]">(optional)</span></>}
+                        {t('register.inviteCodeLabel', { defaultValue: 'Invite Code' })}{registrationMode !== 'invite' && <> <span className="font-normal text-[var(--text-tertiary)]">{t('register.optional', { defaultValue: '(optional)' })}</span></>}
                       </Label>
                       <Input
                         ref={inviteRef}
@@ -361,7 +365,7 @@ export function RegisterPage() {
                         value={inviteCode}
                         onChange={(e) => setInviteCode(e.target.value)}
                         onBlur={() => markTouched('inviteCode')}
-                        placeholder="Paste invite code to auto-join"
+                        placeholder={t('register.inviteCodePlaceholder', { defaultValue: 'Paste invite code to auto-join' })}
                         enterKeyHint="done"
                         required={registrationMode === 'invite'}
                         aria-invalid={touched.inviteCode && !!fieldErrors.inviteCode}
@@ -392,7 +396,7 @@ export function RegisterPage() {
                       fullWidth
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
-                      {loading ? 'Creating account...' : 'Create Account'}
+                      {loading ? t('register.creatingAccount', { defaultValue: 'Creating account...' }) : t('register.createAccount', { defaultValue: 'Create Account' })}
                     </Button>
                   </div>
                 </form>
@@ -400,9 +404,9 @@ export function RegisterPage() {
             </Card>
 
             <p className="text-center text-[14px] text-[var(--text-secondary)]">
-              Already have an account?{' '}
+              {t('register.haveAccount', { defaultValue: 'Already have an account?' })}{' '}
               <Link to="/login" className="text-[var(--accent)] font-medium hover:underline focus-visible:underline focus-visible:outline-none">
-                Sign in
+                {t('register.signIn', { defaultValue: 'Sign in' })}
               </Link>
             </p>
           </>

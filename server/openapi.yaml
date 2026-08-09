@@ -163,6 +163,13 @@ components:
           format: date-time
           nullable: true
           description: Date until which the current plan is active (null for self-hosted)
+        language:
+          type: string
+          nullable: true
+          description: >
+            User's explicit language preference (e.g. "en", "nb"), set only via
+            Settings → Preferences. Null means no explicit preference — the
+            client falls back to browser-detected/localStorage language.
 
     LoginRequest:
       type: object
@@ -209,6 +216,10 @@ components:
         email:
           type: string
           format: email
+        language:
+          type: string
+          nullable: true
+          description: Must be one of the server's supported language codes (currently "en", "nb").
 
     ChangePasswordRequest:
       type: object
@@ -1925,7 +1936,7 @@ paths:
   /auth/profile:
     put:
       tags: [Auth]
-      summary: Update display name and/or email
+      summary: Update display name, email, and/or language
       requestBody:
         required: true
         content:

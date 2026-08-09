@@ -1,0 +1,57 @@
+{
+  "actions": {
+    "save": "Lagre",
+    "cancel": "Avbryt",
+    "delete": "Slett",
+    "confirm": "Bekreft",
+    "loading": "Laster...",
+    "install": "Installer",
+    "upgrade": "Oppgrader"
+  },
+  "nav": {
+    "mainNavigation": "Hovednavigasjon",
+    "navigation": "Navigasjon",
+    "skipToMain": "Hopp til hovedinnhold",
+    "home": "Hjem",
+    "dashboard": "Oversikt",
+    "bins": "Bokser",
+    "locations": "Steder",
+    "items": "Gjenstander",
+    "checkedOut": "Utsjekket",
+    "shoppingList": "Handleliste",
+    "tags": "Stikkord",
+    "print": "Skriv ut",
+    "scan": "Skann",
+    "reorganize": "Reorganiser",
+    "askAi": "Spør AI",
+    "more": "Mer",
+    "manage": "Administrer",
+    "tools": "Verktøy",
+    "settings": "Innstillinger",
+    "signOut": "Logg ut",
+    "expandSidebar": "Utvid sidepanel",
+    "collapseSidebar": "Skjul sidepanel",
+    "switchLocation": "Bytt sted",
+    "selectLocation": "Velg sted"
+  },
+  "createFab": {
+    "addFromPhotos": "Legg til fra bilder",
+    "createOptions": "Opprettingsvalg",
+    "newBinPrefix": "Ny",
+    "createBinPrefix": "Opprett"
+  },
+  "install": {
+    "prompt": "Installer {{appName}}",
+    "dismiss": "Lukk installeringsforslag"
+  },
+  "plan": {
+    "overLimitBanner": "Du har overskredet abonnementsgrensene. Reduser bruken eller oppgrader for å fortsette å redigere.",
+    "proBadge": "Pro"
+  },
+  "tour": {
+    "thisTour": "Denne omvisningen",
+    "needsContent": "{{title}} trenger litt innhold på denne siden først."
+  },
+  "itemCount_one": "{{count}} gjenstand",
+  "itemCount_other": "{{count}} gjenstander"
+}

@@ -1,5 +1,6 @@
 import { LogIn, Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { useOAuthReturn } from './OAuthReturn';
 import { SocialButtons, SocialDivider } from './SocialButtons';
 
 export function LoginPage() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const { login, refreshSession } = useAuth();
   const { showToast } = useToast();
@@ -60,11 +62,11 @@ export function LoginPage() {
         if (!cancelled) {
           setDemoLoading(false);
           setDemoFailed(true);
-          showToast({ message: 'Demo login failed. Please sign in manually.', variant: 'error' });
+          showToast({ message: t('login.demoLoginFailed', { defaultValue: 'Demo login failed. Please sign in manually.' }), variant: 'error' });
         }
       });
     return () => { cancelled = true; };
-  }, [demoMode, showToast]);
+  }, [demoMode, showToast, t]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -91,7 +93,7 @@ export function LoginPage() {
         setRecoveryOpen(true);
         return;
       }
-      setFormError(getErrorMessage(err, 'Invalid email or password'));
+      setFormError(getErrorMessage(err, t('login.invalidCredentials', { defaultValue: 'Invalid email or password' })));
       emailRef.current?.focus();
     } finally {
       setLoading(false);
@@ -103,7 +105,9 @@ export function LoginPage() {
       <button
         type="button"
         onClick={() => setThemePreference(cycleThemePreference(preference))}
-        aria-label={`Switch theme, currently ${preference}`}
+        aria-label={t('themeToggle', {
+            defaultValue: 'Switch theme, currently {{theme}}',
+            theme: preference })}
         className={cn(
           'absolute top-4 right-4 z-10 p-3 rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)] transition-colors',
           focusRing
@@ -118,14 +122,14 @@ export function LoginPage() {
             {settings.appName}
           </h1>
           <p className="text-[14px] text-[var(--text-tertiary)]">
-            QR-coded storage, organized
+            {t('login.tagline', { defaultValue: 'QR-coded storage, organized' })}
           </p>
         </div>
 
         {demoLoading ? (
-          <output aria-label="Loading demo" className="block text-center space-y-4">
+          <output aria-label={t('login.demoLoadingLabel', { defaultValue: 'Loading demo' })} className="block text-center space-y-4">
             <span className="block h-8 w-8 mx-auto border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" aria-hidden="true" />
-            <p className="text-[14px] text-[var(--text-secondary)]">Entering demo...</p>
+            <p className="text-[14px] text-[var(--text-secondary)]">{t('login.enteringDemo', { defaultValue: 'Entering demo...' })}</p>
           </output>
         ) : (
           <>
@@ -140,14 +144,14 @@ export function LoginPage() {
                     </p>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
+                    <Label htmlFor="login-email">{t('login.emailLabel', { defaultValue: 'Email' })}</Label>
                     <Input
                       ref={emailRef}
                       id="login-email"
                       type="email"
                       value={email}
                       onChange={(e) => { setEmail(e.target.value); if (formError) setFormError(''); }}
-                      placeholder="Enter email"
+                      placeholder={t('login.emailPlaceholder', { defaultValue: 'Enter email' })}
                       autoComplete="email"
                       autoFocus
                       required
@@ -155,19 +159,19 @@ export function LoginPage() {
                     />
                   </div>
                   <div className="relative space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
+                    <Label htmlFor="login-password">{t('login.passwordLabel', { defaultValue: 'Password' })}</Label>
                     <PasswordInput
                       ref={passwordRef}
                       id="login-password"
                       value={password}
                       onChange={(e) => { setPassword(e.target.value); if (formError) setFormError(''); }}
-                      placeholder="Enter password"
+                      placeholder={t('login.passwordPlaceholder', { defaultValue: 'Enter password' })}
                       autoComplete="current-password"
                       required
                       enterKeyHint="done"
                     />
                     <Link to="/forgot-password" className="absolute right-0 top-0 text-[13px] text-[var(--accent)] hover:underline focus-visible:underline focus-visible:outline-none shrink-0">
-                      Forgot password?
+                      {t('login.forgotPassword', { defaultValue: 'Forgot password?' })}
                     </Link>
                   </div>
                   <Button
@@ -176,7 +180,7 @@ export function LoginPage() {
                     fullWidth
                   >
                     <LogIn className="h-4 w-4 mr-2" />
-                    {loading ? 'Signing in...' : 'Sign In'}
+                    {loading ? t('login.signingIn', { defaultValue: 'Signing in...' }) : t('login.signIn', { defaultValue: 'Sign In' })}
                   </Button>
                 </form>
               </CardContent>
@@ -184,9 +188,9 @@ export function LoginPage() {
 
             {registrationEnabled && (
               <p className="text-center text-[14px] text-[var(--text-secondary)]">
-                Don't have an account?{' '}
+                {t('login.noAccount', { defaultValue: 'Don\'t have an account?' })}{' '}
                 <Link to="/register" className="text-[var(--accent)] font-medium hover:underline focus-visible:underline focus-visible:outline-none">
-                  Create one
+                  {t('login.createOne', { defaultValue: 'Create one' })}
                 </Link>
               </p>
             )}
@@ -204,7 +208,7 @@ export function LoginPage() {
             await login(email.trim(), password);
             navigate('/');
           } catch (err) {
-            setFormError(getErrorMessage(err, 'Login failed after recovery'));
+            setFormError(getErrorMessage(err, t('login.recoveryFailed', { defaultValue: 'Login failed after recovery' })));
           }
         }}
       />

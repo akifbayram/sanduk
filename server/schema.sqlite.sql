@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   marketing_opt_in       INTEGER NOT NULL DEFAULT 0,
   marketing_opt_in_at    TEXT,
   marketing_opt_out_at   TEXT,
+  language           TEXT,
   created_at         TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
