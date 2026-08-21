@@ -71,7 +71,7 @@ export function generateNonce(res: Response): { nonce: string; nonceHash: string
 
 const jwksCache = new Map<string, ReturnType<typeof jose.createRemoteJWKSet>>();
 
-function getJwks(url: string): ReturnType<typeof jose.createRemoteJWKSet> {
+export function getJwks(url: string): ReturnType<typeof jose.createRemoteJWKSet> {
   let cached = jwksCache.get(url);
   if (!cached) {
     cached = jose.createRemoteJWKSet(new URL(url));
@@ -82,6 +82,82 @@ function getJwks(url: string): ReturnType<typeof jose.createRemoteJWKSet> {
 
 export const googleJwks = () => getJwks('https://www.googleapis.com/oauth2/v3/certs');
 export const appleJwks = () => getJwks('https://appleid.apple.com/auth/keys');
+
+// -- Generic OIDC discovery --
+
+export class OidcDiscoveryError extends Error {}
+export class OidcIssuerMismatchError extends OidcDiscoveryError {}
+
+export interface OidcDiscoveryDocument {
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  jwks_uri: string;
+  userinfo_endpoint?: string;
+}
+
+const oidcDiscoveryCache = new Map<string, Promise<OidcDiscoveryDocument>>();
+
+/**
+ * Fetches and validates the OIDC Discovery 1.0 document for `issuerUrl`,
+ * caching the resolved promise per issuer for the life of the process
+ * (mirrors the JWKS cache above — restart to pick up IdP endpoint changes).
+ * Concurrent callers share the in-flight promise; a rejection is evicted
+ * immediately so the next attempt retries instead of being stuck behind a
+ * permanently-failed promise.
+ */
+export function discoverOidcConfig(issuerUrl: string): Promise<OidcDiscoveryDocument> {
+  let cached = oidcDiscoveryCache.get(issuerUrl);
+  if (!cached) {
+    cached = (async () => {
+      const wellKnownUrl = `${issuerUrl}/.well-known/openid-configuration`;
+      // `Response` (unqualified) resolves to express's Response type imported
+      // above for the cookie helpers — use the Fetch API type explicitly.
+      let res: globalThis.Response;
+      try {
+        res = await fetch(wellKnownUrl);
+      } catch (err) {
+        throw new OidcDiscoveryError(`OIDC discovery request failed: ${(err as Error).message}`);
+      }
+      if (!res.ok) {
+        throw new OidcDiscoveryError(`OIDC discovery returned ${res.status}`);
+      }
+      const doc = await res.json() as Partial<OidcDiscoveryDocument>;
+      if (!doc.issuer || !doc.authorization_endpoint || !doc.token_endpoint || !doc.jwks_uri) {
+        throw new OidcDiscoveryError('OIDC discovery document missing required fields');
+      }
+      // OIDC Discovery 1.0 §4.3 — the discovered `issuer` MUST exactly match
+      // the configured issuer URL. Fail closed on mismatch. Trailing slashes
+      // are normalized on both sides first — real IdPs (e.g. Auth0) commonly
+      // report an `issuer` with a trailing slash regardless of how the admin
+      // wrote OIDC_ISSUER_URL, and config.ts already strips it from the
+      // configured value, so compare like-for-like here rather than relying
+      // on the caller to have normalized it the same way.
+      const stripTrailingSlash = (u: string) => u.replace(/\/+$/, '');
+      if (stripTrailingSlash(doc.issuer) !== stripTrailingSlash(issuerUrl)) {
+        throw new OidcIssuerMismatchError(`OIDC issuer mismatch: expected "${issuerUrl}", got "${doc.issuer}"`);
+      }
+      // Defense in depth: the issuer itself is required to be https:// (see
+      // config.ts), but the discovery document's own endpoint URLs are
+      // untrusted data from that same response. Reject any endpoint that
+      // isn't https:// so a malicious/compromised discovery response can't
+      // downgrade the token exchange (which carries the client secret and
+      // auth code) or the JWKS fetch to a plaintext, interceptable request.
+      const endpoints = [doc.authorization_endpoint, doc.token_endpoint, doc.jwks_uri, doc.userinfo_endpoint].filter(
+        (u): u is string => !!u,
+      );
+      for (const endpoint of endpoints) {
+        if (!/^https:\/\//.test(endpoint)) {
+          throw new OidcDiscoveryError(`OIDC discovery document endpoint is not https://: ${endpoint}`);
+        }
+      }
+      return doc as OidcDiscoveryDocument;
+    })();
+    cached.catch(() => oidcDiscoveryCache.delete(issuerUrl));
+    oidcDiscoveryCache.set(issuerUrl, cached);
+  }
+  return cached;
+}
 
 // -- Find or create OAuth user --
 
@@ -259,6 +335,8 @@ export async function linkOAuthIdentity(input: LinkOAuthInput): Promise<LinkResu
  * `OAuthReturn.tsx` to render specific toasts.
  */
 export function oauthErrorReason(err: unknown): string {
+  if (err instanceof OidcIssuerMismatchError) return 'issuer_mismatch';
+  if (err instanceof OidcDiscoveryError) return 'discovery_failed';
   if (err instanceof ForbiddenError) {
     if (/already exists/i.test(err.message)) return 'email_in_use';
     return 'forbidden';
@@ -274,9 +352,11 @@ export function oauthErrorReason(err: unknown): string {
 // -- Available providers --
 
 export function getOAuthProviders(): string[] {
-  if (config.selfHosted) return [];
   const providers: string[] = [];
-  if (config.googleClientId && config.googleClientSecret) providers.push('google');
-  if (config.appleClientId && config.appleTeamId && config.appleKeyId && config.applePrivateKey) providers.push('apple');
+  if (!config.selfHosted) {
+    if (config.googleClientId && config.googleClientSecret) providers.push('google');
+    if (config.appleClientId && config.appleTeamId && config.appleKeyId && config.applePrivateKey) providers.push('apple');
+  }
+  if (config.oidcIssuerUrl && config.oidcClientId && config.oidcClientSecret) providers.push('oidc');
   return providers;
 }

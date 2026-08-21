@@ -251,7 +251,7 @@ export function RegisterPage() {
           <>
             <Card>
               <CardContent className="py-6">
-                <SocialButtons providers={oauthProviders} />
+                <SocialButtons providers={oauthProviders} oidcDisplayName={authStatus.oidcDisplayName} />
                 {oauthProviders.length > 0 && <SocialDivider />}
                 <form onSubmit={handleSubmit} noValidate>
                   {/* Account details */}

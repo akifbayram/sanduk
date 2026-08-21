@@ -131,7 +131,7 @@ export function LoginPage() {
           <>
             <Card>
               <CardContent className="py-6">
-                <SocialButtons providers={oauthProviders} />
+                <SocialButtons providers={oauthProviders} oidcDisplayName={authStatus.oidcDisplayName} />
                 {oauthProviders.length > 0 && <SocialDivider />}
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                   {formError && (
