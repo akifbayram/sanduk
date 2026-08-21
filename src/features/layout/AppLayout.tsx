@@ -1,5 +1,6 @@
 import { ArrowUpRight, Download, X } from 'lucide-react';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/ui/command-palette';
@@ -59,6 +60,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function AppLayout() {
+  const { t } = useTranslation('common');
   useTheme();
   useOAuthReturn();
   const { isCollapsed: sidebarCollapsed } = useSidebarCollapsed();
@@ -117,11 +119,13 @@ export function AppLayout() {
 
   const { showToast } = useToast();
   const onTourUnavailable = useCallback((tourId: TourId) => {
-    const title = getTour(tourId)?.title ?? 'This tour';
+    const title = getTour(tourId)?.title ?? t('tour.thisTour', { defaultValue: 'This tour' });
     showToast({
-      message: `${title} needs some content on this page first.`,
+      message: t('tour.needsContent', {
+          defaultValue: '{{title}} needs some content on this page first.',
+        title }),
     });
-  }, [showToast]);
+  }, [showToast, t]);
   const tour = useTour({ context: tourContext, navigate, updatePreferences, onUnavailable: onTourUnavailable });
 
   // Close drawer on route change
@@ -229,7 +233,7 @@ export function AppLayout() {
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:focus:bg-[var(--accent)] focus:text-[var(--text-on-accent)] focus:text-[14px] focus:font-medium "
       >
-        Skip to main content
+        {t('nav.skipToMain', { defaultValue: 'Skip to main content' })}
       </a>
       <Sidebar locations={locations} activeLocationId={activeLocationId} onLocationChange={setActiveLocationId} onScanClick={openScanDialog} />
 
@@ -270,7 +274,7 @@ export function AppLayout() {
               <p className="text-sm font-medium text-white">
                 {showLockedBanner
                   ? getLockedMessage(planInfo.previousSubStatus)
-                  : 'You\'re over your plan limits. Reduce usage or upgrade to resume editing.'}
+                  : t('plan.overLimitBanner', { defaultValue: 'You\'re over your plan limits. Reduce usage or upgrade to resume editing.' })}
               </p>
               {(() => {
                 // Locked banner uses the plan-picker (still GET because /plans
@@ -287,7 +291,7 @@ export function AppLayout() {
                     >
                       {showLockedBanner
                         ? getLockedCta(planInfo.previousSubStatus)
-                        : 'Upgrade'}
+                        : t('actions.upgrade', { defaultValue: 'Upgrade' })}
                       <ArrowUpRight className="h-3 w-3" />
                     </CheckoutLink>
                   </Suspense>
@@ -323,19 +327,21 @@ export function AppLayout() {
         <div className="fixed z-40 bottom-[calc(12px+var(--bottom-bar-height)+var(--safe-bottom))] lg:bottom-6 left-4 right-4 lg:left-auto lg:right-6 lg:w-[360px] flat-heavy rounded-[var(--radius-lg)] px-4 py-3 flex items-center gap-3 fade-in-fast">
           <Download className="h-5 w-5 text-[var(--accent)] shrink-0" />
           <p className="flex-1 text-[14px] text-[var(--text-primary)]">
-            Install {settings.appName}
+            {t('install.prompt', {
+                defaultValue: 'Install {{appName}}',
+                appName: settings.appName })}
           </p>
           <Button
             size="sm"
             onClick={handleInstall}
             className="h-8 px-3.5 text-[13px]"
           >
-            Install
+            {t('actions.install', { defaultValue: 'Install' })}
           </Button>
           <button
             type="button"
             onClick={() => { setDismissed(true); localStorage.setItem('openbin-install-dismissed', '1'); }}
-            aria-label="Dismiss install prompt"
+            aria-label={t('install.dismiss', { defaultValue: 'Dismiss install prompt' })}
             className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1"
           >
             <X className="h-4 w-4" />

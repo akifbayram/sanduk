@@ -134,6 +134,30 @@ describe('POST /api/auth/login', () => {
     expect(res.body.user.email).toBe('logintest@test.local');
   });
 
+  it('returns the saved language preference so cross-device sync works from the login response itself', async () => {
+    await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'langlogin@test.local', password: 'StrongPass1!', displayName: 'Lang Login' });
+
+    const firstLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'langlogin@test.local', password: 'StrongPass1!' });
+    const token = getAccessCookie(firstLogin)!;
+
+    const putRes = await request(app)
+      .put('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ language: 'nb' });
+    expect(putRes.status).toBe(200);
+
+    const secondLogin = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'langlogin@test.local', password: 'StrongPass1!' });
+
+    expect(secondLogin.status).toBe(200);
+    expect(secondLogin.body.user.language).toBe('nb');
+  });
+
   it('sets httpOnly cookies on login', async () => {
     await request(app)
       .post('/api/auth/register')
@@ -388,6 +412,44 @@ describe('PUT /api/auth/profile', () => {
       .send({});
 
     expect(res.status).toBe(422);
+  });
+
+  it('accepts a supported language code and reflects it on GET /me', async () => {
+    const { token } = await createTestUser(app);
+
+    const res = await request(app)
+      .put('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ language: 'nb' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.language).toBe('nb');
+
+    const me = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+    expect(me.body.language).toBe('nb');
+  });
+
+  it('rejects an unsupported language code', async () => {
+    const { token } = await createTestUser(app);
+
+    const res = await request(app)
+      .put('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ language: 'xx' });
+
+    expect(res.status).toBe(422);
+  });
+
+  it('defaults language to null for a fresh account that never set one', async () => {
+    const { token } = await createTestUser(app);
+
+    const me = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(me.body.language).toBeNull();
   });
 });
 

@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useOverlayAnimation } from '@/lib/useOverlayAnimation';
 
@@ -9,6 +10,7 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ open, onClose, children }: MobileDrawerProps) {
+  const { t } = useTranslation('common');
   const panelRef = useRef<HTMLDivElement>(null);
   const { visible, isEntered } = useOverlayAnimation({ open, onClose });
   useFocusTrap({ active: open && visible, containerRef: panelRef });
@@ -35,7 +37,7 @@ export function MobileDrawer({ open, onClose, children }: MobileDrawerProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Navigation"
+        aria-label={t('nav.navigation', { defaultValue: 'Navigation' })}
         className="fixed top-0 left-0 h-dvh w-[260px] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col overflow-y-auto pt-[var(--safe-top)]"
         style={{
           transform: isEntered ? 'translateX(0)' : 'translateX(-100%)',

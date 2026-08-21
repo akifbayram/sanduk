@@ -8,4 +8,5 @@ export const STORAGE_KEYS = {
   COLUMN_VISIBILITY: 'openbin-column-visibility',
   SIDEBAR_COLLAPSED: 'openbin-sidebar-collapsed',
   ADMIN_COLUMN_VISIBILITY: 'openbin-admin-column-visibility',
+  LANGUAGE: 'openbin-language',
 } as const;

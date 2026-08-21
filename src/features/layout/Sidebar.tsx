@@ -1,5 +1,6 @@
 import { Boxes, ClipboardList, LayoutDashboard, LogOut, MapPin, Package, PackageSearch, PanelLeftClose, PanelLeftOpen, Printer, ScanLine, Settings, ShoppingCart, Tags } from
   'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { useAppSettings } from '@/lib/appSettings';
@@ -19,25 +20,49 @@ import { LocationSwitcher } from './LocationSwitcher';
    edge → icon center at 30px. Close enough to visual center (32px) and
    identical in both collapsed and expanded states, so icons never shift. */
 
-const topItems: { path: string; label: string; icon: React.ComponentType<{ className?: string }>; termKey?: TermKey }[] = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/bins', label: 'Bins', icon: Package, termKey: 'Bins' },
+// `labelKey` resolves to common:nav.<labelKey> at render time — the union is
+// narrow on purpose so `t(\`nav.${item.labelKey}\`, ...)` type-checks against
+// the generated resource key type (see src/i18next.d.ts). Items with
+// `termKey` instead pull their label from useTerminology() (admin-configured
+// term pairs are a separate, non-i18n text-substitution system — see
+// docs/i18n.md's known limitation).
+type NavLabelKey = 'dashboard' | 'bins' | 'locations' | 'items' | 'checkedOut' | 'shoppingList' | 'tags' | 'print' | 'scan' | 'reorganize';
+
+// English fallback for each nav.<labelKey> below, passed as `defaultValue` at
+// every t(`nav.${...}`) call site so labels never flash a raw i18n key on a
+// cold load while the 'common' namespace JSON is still fetching.
+const NAV_LABEL_DEFAULTS: Record<NavLabelKey, string> = {
+  dashboard: 'Dashboard',
+  bins: 'Bins',
+  locations: 'Locations',
+  items: 'Items',
+  checkedOut: 'Checked Out',
+  shoppingList: 'Shopping List',
+  tags: 'Tags',
+  print: 'Print',
+  scan: 'Scan',
+  reorganize: 'Reorganize',
+};
+
+const topItems: { path: string; labelKey: NavLabelKey; icon: React.ComponentType<{ className?: string }>; termKey?: TermKey }[] = [
+  { path: '/', labelKey: 'dashboard', icon: LayoutDashboard },
+  { path: '/bins', labelKey: 'bins', icon: Package, termKey: 'Bins' },
 ];
 
-type NavItem = { path: string; label: string; icon: React.ComponentType<{ className?: string }>; termKey?: TermKey; requireWrite?: boolean; proOnly?: boolean };
+type NavItem = { path: string; labelKey: NavLabelKey; icon: React.ComponentType<{ className?: string }>; termKey?: TermKey; requireWrite?: boolean; proOnly?: boolean };
 
 const manageItems: NavItem[] = [
-  { path: '/locations', label: 'Locations', icon: MapPin, termKey: 'Locations' },
-  { path: '/items', label: 'Items', icon: ClipboardList },
-  { path: '/checkouts', label: 'Checked Out', icon: PackageSearch },
-  { path: '/shopping-list', label: 'Shopping List', icon: ShoppingCart },
-  { path: '/tags', label: 'Tags', icon: Tags },
+  { path: '/locations', labelKey: 'locations', icon: MapPin, termKey: 'Locations' },
+  { path: '/items', labelKey: 'items', icon: ClipboardList },
+  { path: '/checkouts', labelKey: 'checkedOut', icon: PackageSearch },
+  { path: '/shopping-list', labelKey: 'shoppingList', icon: ShoppingCart },
+  { path: '/tags', labelKey: 'tags', icon: Tags },
 ];
 
 const toolItems: NavItem[] = [
-  { path: '/print', label: 'Print', icon: Printer },
-  { path: '/scan', label: 'Scan', icon: ScanLine },
-  { path: '/reorganize', label: 'Reorganize', icon: Boxes, requireWrite: true, proOnly: true },
+  { path: '/print', labelKey: 'print', icon: Printer },
+  { path: '/scan', labelKey: 'scan', icon: ScanLine },
+  { path: '/reorganize', labelKey: 'reorganize', icon: Boxes, requireWrite: true, proOnly: true },
 ];
 
 const brandIcon = <BrandIcon className="h-8 w-8 text-[var(--accent)] shrink-0" />;
@@ -63,6 +88,7 @@ function NavButton({ path, label, icon: Icon, currentPath, navigate, onClick, co
   collapsed?: boolean;
   proBadge?: boolean;
 }) {
+  const { t } = useTranslation('common');
   const isActive = path === '/bins'
     ? currentPath === '/bins' || currentPath.startsWith('/bin/')
     : path === '/settings'
@@ -87,7 +113,7 @@ function NavButton({ path, label, icon: Icon, currentPath, navigate, onClick, co
         {label}
       </span>
       {proBadge && !collapsed && (
-        <span className="ml-auto text-[10px] font-semibold text-[var(--text-tertiary)] shrink-0">Pro</span>
+        <span className="ml-auto text-[10px] font-semibold text-[var(--text-tertiary)] shrink-0">{t('plan.proBadge', { defaultValue: 'Pro' })}</span>
       )}
     </button>
   );
@@ -103,12 +129,13 @@ interface SidebarContentProps {
 }
 
 export function SidebarContent({ locations, activeLocationId, onLocationChange, onItemClick, onScanClick, collapsed }: SidebarContentProps) {
+  const { t } = useTranslation('common');
   const location = useLocation();
   const rawNavigate = useNavigate();
   const { guardedNavigate } = useNavigationGuard();
   const navigate = (path: string) => guardedNavigate(() => rawNavigate(path));
   const { settings } = useAppSettings();
-  const t = useTerminology();
+  const term = useTerminology();
   const { logout } = useAuth();
   const { canWrite } = usePermissions();
   const { isSelfHosted, isFree } = usePlan();
@@ -132,36 +159,36 @@ export function SidebarContent({ locations, activeLocationId, onLocationChange, 
         {/* Top: Home, Bins */}
         <div className="space-y-1">
           {topItems.map((item) => (
-            <NavButton key={item.path} {...item} label={item.termKey ? t[item.termKey] : item.label} currentPath={location.pathname} navigate={navigate}
+            <NavButton key={item.path} {...item} label={item.termKey ? term[item.termKey] : t(`nav.${item.labelKey}`, { defaultValue: NAV_LABEL_DEFAULTS[item.labelKey] })} currentPath={location.pathname} navigate={navigate}
               onClick={onItemClick} collapsed={collapsed} />
           ))}
         </div>
 
         {/* Manage & Tools sections — scrollable when viewport is short */}
         <div data-tour="nav-sidebar" className="flex-1 min-h-0 overflow-y-auto border-b border-[var(--border-subtle)]">
-          <SectionLabel collapsed={collapsed}>Manage</SectionLabel>
+          <SectionLabel collapsed={collapsed}>{t('nav.manage', { defaultValue: 'Manage' })}</SectionLabel>
           <div className="space-y-1">
             {manageItems.map((item) => (
-              <NavButton key={item.path} {...item} label={item.termKey ? t[item.termKey] : item.label} currentPath={location.pathname} navigate={navigate}
+              <NavButton key={item.path} {...item} label={item.termKey ? term[item.termKey] : t(`nav.${item.labelKey}`, { defaultValue: NAV_LABEL_DEFAULTS[item.labelKey] })} currentPath={location.pathname} navigate={navigate}
                 onClick={onItemClick} collapsed={collapsed} />
             ))}
           </div>
 
-          <SectionLabel collapsed={collapsed}>Tools</SectionLabel>
+          <SectionLabel collapsed={collapsed}>{t('nav.tools', { defaultValue: 'Tools' })}</SectionLabel>
           <div className="space-y-1">
             {toolItems.filter((item) => !item.requireWrite || canWrite).map((item) =>
               item.path === '/scan' ? (
                 <NavButton
                   key={item.path}
                   {...item}
-                  label={item.label}
+                  label={t(`nav.${item.labelKey}`, { defaultValue: NAV_LABEL_DEFAULTS[item.labelKey] })}
                   currentPath={location.pathname}
                   navigate={() => { onScanClick?.(); onItemClick?.(); }}
                   onClick={undefined}
                   collapsed={collapsed}
                 />
               ) : (
-                <NavButton key={item.path} {...item} label={item.termKey ? t[item.termKey] : item.label} currentPath={location.pathname} navigate={navigate}
+                <NavButton key={item.path} {...item} label={item.termKey ? term[item.termKey] : t(`nav.${item.labelKey}`, { defaultValue: NAV_LABEL_DEFAULTS[item.labelKey] })} currentPath={location.pathname} navigate={navigate}
                   onClick={onItemClick} collapsed={collapsed} proBadge={showProBadges && item.proOnly} />
               )
             )}
@@ -173,7 +200,7 @@ export function SidebarContent({ locations, activeLocationId, onLocationChange, 
         <div className="space-y-1">
           {collapsed ? (
             locations.length > 1 && (
-              <NavButton path="/locations" label={t.Locations ?? 'Locations'} icon={MapPin} currentPath={location.pathname}
+              <NavButton path="/locations" label={term.Locations ?? t('nav.locations', { defaultValue: 'Locations' })} icon={MapPin} currentPath={location.pathname}
                 navigate={navigate} onClick={onItemClick} collapsed />
             )
           ) : (
@@ -183,18 +210,18 @@ export function SidebarContent({ locations, activeLocationId, onLocationChange, 
               onLocationChange={(id) => { onLocationChange(id); onItemClick?.(); }}
             />
           )}
-          <NavButton path="/settings" label="Settings" icon={Settings} currentPath={location.pathname} navigate={navigate} onClick={onItemClick}
+          <NavButton path="/settings" label={t('nav.settings', { defaultValue: 'Settings' })} icon={Settings} currentPath={location.pathname} navigate={navigate} onClick={onItemClick}
             collapsed={collapsed} />
           <button
             type="button"
             onClick={() => { logout(); onItemClick?.(); }}
-            aria-label="Sign Out"
+            aria-label={t('nav.signOut', { defaultValue: 'Sign Out' })}
             className="flex items-center gap-3 px-2 py-2.5 rounded-[var(--radius-sm)] text-[15px] text-[var(--text-tertiary)] hover:bg-[var(--bg-hover)]
   w-full overflow-hidden whitespace-nowrap text-left border border-transparent"
           >
             <LogOut className="h-5 w-5 shrink-0" />
             <span className={cn('truncate', collapsed && 'w-0 opacity-0')} aria-hidden={collapsed || undefined}>
-              Sign Out
+              {t('nav.signOut', { defaultValue: 'Sign Out' })}
             </span>
           </button>
         </div>
@@ -212,11 +239,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ locations, activeLocationId, onLocationChange, onScanClick }: SidebarProps) {
+  const { t } = useTranslation('common');
   const { isCollapsed, toggle } = useSidebarCollapsed();
 
   return (
     <aside
-      aria-label="Main navigation"
+      aria-label={t('nav.mainNavigation', { defaultValue: 'Main navigation' })}
       className="hidden lg:flex flex-col h-dvh fixed left-0 top-0 z-30 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] print-hide
   transition-[width] duration-200 ease-in-out"
       style={{ width: isCollapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)' }}
@@ -230,7 +258,7 @@ export function Sidebar({ locations, activeLocationId, onLocationChange, onScanC
       <button
         type="button"
         onClick={toggle}
-        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={isCollapsed ? t('nav.expandSidebar', { defaultValue: 'Expand sidebar' }) : t('nav.collapseSidebar', { defaultValue: 'Collapse sidebar' })}
         aria-expanded={!isCollapsed}
         className="absolute top-[31px] right-0 translate-x-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-7 h-7 rounded-[var(--radius-lg)] flat-heavy
   text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[var(--accent)]

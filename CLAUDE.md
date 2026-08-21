@@ -34,6 +34,7 @@ AI-powered bin inventory. Multi-user web app where AI does the organizing work: 
 - **Responsive**: mobile-first. Breakpoint `lg` (1024px).
 - **Server error handling**: Routes use `throw new ValidationError(...)` etc. from `server/src/lib/httpErrors.ts`, wrapped in `asyncHandler()` to forward to the global error handler.
 - **Event bus**: `notify()` and `useRefreshOn()` from `lib/eventBus.ts`. 12 event types: `BINS`, `LOCATIONS`, `PHOTOS`, `PINS`, `AREAS`, `TAG_COLORS`, `SCAN_HISTORY`, `CUSTOM_FIELDS`, `PLAN`, `CHECKOUTS`, `BIN_USAGE`, `ATTACHMENTS`.
+- **`useTerminology()`** → destructure as `term`, not `t`, to avoid colliding with i18next's `t`.
 
 ## API Documentation
 
@@ -56,6 +57,7 @@ OpenAPI spec at `server/openapi.yaml`.
 - **Thumbnail generation**: Worker pool via `piscina` (`server/src/lib/thumbnailPool.ts`). Sharp runs off-main-thread to avoid blocking the event loop.
 - **Export streaming**: Large exports stream JSON via `res.write()` to prevent OOM. Don't buffer the full response in `server/src/routes/export.ts`.
 - **Ask AI chat**: `useConversation` in `src/features/ai/useConversation.ts` drives turn-based chat. Per-session memory only — conversation clears on dialog close. Both desktop and mobile use the `CommandInput` dialog (bottom sheet on mobile, centered dialog on desktop). Consumes `ConversationThread` + `ConversationComposer`. Server accepts optional `history` on `/ai/ask/stream`, `/ai/query/stream`, `/ai/command/stream` via `parseHistoryFromBody()` (`server/src/lib/conversationHistory.ts`). Command-action turns execute in a single round-trip via `POST /api/batch` (`server/src/routes/batch.ts`).
+- **i18n**: see `docs/i18n.md` — `useTerminology()` uses `term`, not `t`, to avoid colliding with i18next's `t`.
 
 ## Security (non-obvious)
 

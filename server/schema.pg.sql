@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
   marketing_opt_in       BOOLEAN NOT NULL DEFAULT FALSE,
   marketing_opt_in_at    TEXT,
   marketing_opt_out_at   TEXT,
+  language           TEXT,
   created_at         TEXT NOT NULL DEFAULT (NOW()),
   updated_at         TEXT NOT NULL DEFAULT (NOW())
 );

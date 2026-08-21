@@ -20,6 +20,22 @@
         document.documentElement.className = t;
       })();
     </script>
+    <script>
+      // Apply stored/detected language before first paint to prevent a
+      // flash of the wrong lang/dir attribute. Mirrors the theme script
+      // above and reuses the same storage key i18next's LanguageDetector
+      // reads/writes (see src/lib/i18n.ts).
+      (function() {
+        var lang = localStorage.getItem('openbin-language');
+        if (!lang) {
+          var nav = navigator.language || 'en';
+          lang = nav.slice(0, 2) === 'nb' || nav.slice(0, 2) === 'no' ? 'nb' : 'en';
+        }
+        var rtl = ['ar', 'he', 'fa', 'ur'].indexOf(lang) !== -1;
+        document.documentElement.lang = lang;
+        document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

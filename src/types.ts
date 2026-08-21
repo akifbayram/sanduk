@@ -19,6 +19,7 @@ export interface User {
   currentTosVersion?: string | null;
   currentPrivacyVersion?: string | null;
   marketingOptIn?: boolean;
+  language?: string | null;
 }
 
 export interface Location {

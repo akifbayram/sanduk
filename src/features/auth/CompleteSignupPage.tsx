@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { BrandIcon } from '@/components/BrandIcon';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { cn, focusRing, getErrorMessage } from '@/lib/utils';
 import { ConsentCheckboxes } from './ConsentCheckboxes';
 
 export function CompleteSignupPage() {
+  const { t } = useTranslation('auth');
   const { user, refreshSession, logout } = useAuth();
   const { config: authStatus, loaded: statusLoaded } = useAuthStatusConfig();
   const { showToast } = useToast();
@@ -22,11 +24,11 @@ export function CompleteSignupPage() {
 
   const isReacceptance = Boolean(user?.currentTosVersion) || Boolean(user?.currentPrivacyVersion);
   const heading = isReacceptance
-    ? "We've updated our Terms of Service and Privacy Policy"
-    : 'Almost done — confirm to continue';
+    ? t('completeSignup.reacceptanceHeading', { defaultValue: 'We\'ve updated our Terms of Service and Privacy Policy' })
+    : t('completeSignup.newHeading', { defaultValue: 'Almost done — confirm to continue' });
   const body = isReacceptance
-    ? 'Please review and accept the updated documents to keep using your account.'
-    : 'Just one more step before you can start using your account.';
+    ? t('completeSignup.reacceptanceBody', { defaultValue: 'Please review and accept the updated documents to keep using your account.' })
+    : t('completeSignup.newBody', { defaultValue: 'Just one more step before you can start using your account.' });
 
   async function handleContinue() {
     if (!tosAccepted || submitting) return;
@@ -39,7 +41,7 @@ export function CompleteSignupPage() {
       await refreshSession();
       navigate('/');
     } catch (err) {
-      showToast({ message: getErrorMessage(err, 'Failed to record consent'), variant: 'error' });
+      showToast({ message: getErrorMessage(err, t('completeSignup.consentFailed', { defaultValue: 'Failed to record consent' })), variant: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -81,7 +83,7 @@ export function CompleteSignupPage() {
               disabled={!tosAccepted || submitting}
               onClick={handleContinue}
             >
-              {submitting ? 'Saving…' : 'Continue'}
+              {submitting ? t('completeSignup.saving', { defaultValue: 'Saving…' }) : t('completeSignup.continue', { defaultValue: 'Continue' })}
             </Button>
 
             <button
@@ -89,7 +91,7 @@ export function CompleteSignupPage() {
               onClick={() => logout()}
               className={cn('text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] underline-offset-2 hover:underline', focusRing)}
             >
-              Sign out
+              {t('completeSignup.signOut', { defaultValue: 'Sign out' })}
             </button>
           </CardContent>
         </Card>

@@ -1,6 +1,7 @@
 import '@/components/ui/animations.css';
 import { Camera, type LucideIcon, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/lib/navigationGuard';
 import { useTerminology } from '@/lib/terminology';
@@ -24,6 +25,7 @@ interface Pill {
 }
 
 export function CreateFab() {
+  const { t } = useTranslation('common');
   const { pathname } = useLocation();
   const { canCreateBin } = usePermissions();
   const { isLocked, isSelfHosted } = usePlan();
@@ -68,13 +70,16 @@ export function CreateFab() {
   if (!canCreateBin) return null;
   if (isLocked && !isSelfHosted) return null;
 
-  const newBinLabel = `New ${terminology.bin}`;
+  // Composed with the admin-configured terminology term (not routed through
+  // i18next: composing CLDR-unaware term substitutions into translated
+  // sentences is a documented known limitation — see docs/i18n.md).
+  const newBinLabel = `${t('createFab.newBinPrefix', { defaultValue: 'New' })} ${terminology.bin}`;
 
   const pills: Pill[] = [
     {
       key: 'photos',
       icon: Camera,
-      label: 'Add from photos',
+      label: t('createFab.addFromPhotos', { defaultValue: 'Add from photos' }),
       animClass: 'pill-rise-fast-delayed',
       onSelect: () => guardedNavigate(() => navigate('/capture')),
     },
@@ -103,7 +108,7 @@ export function CreateFab() {
         style={{ bottom: 'calc(16px + var(--bottom-bar-height) + var(--safe-bottom))' }}
       >
         {open && (
-          <div role="menu" aria-label="Create options" className="flex flex-col items-end gap-2">
+          <div role="menu" aria-label={t('createFab.createOptions', { defaultValue: 'Create options' })} className="flex flex-col items-end gap-2">
             {pills.map(({ key, icon: Icon, label, animClass, ref: pillRef, onSelect }) => (
               <button
                 key={key}
@@ -126,7 +131,7 @@ export function CreateFab() {
         <button
           ref={fabRef}
           type="button"
-          aria-label={`Create ${terminology.bin}`}
+          aria-label={`${t('createFab.createBinPrefix', { defaultValue: 'Create' })} ${terminology.bin}`}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}

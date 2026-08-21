@@ -24,7 +24,7 @@ router.post('/login', asyncHandler(async (req, res) => {
   }
 
   const result = await query(
-    'SELECT id, password_hash, display_name, email, avatar_path, active_location_id, deleted_at, deletion_scheduled_at, suspended_at, token_version, force_password_change, is_admin FROM users WHERE email = $1',
+    'SELECT id, password_hash, display_name, email, avatar_path, active_location_id, deleted_at, deletion_scheduled_at, suspended_at, token_version, force_password_change, is_admin, language FROM users WHERE email = $1',
     [email.toLowerCase().trim()]
   );
 
@@ -122,6 +122,7 @@ router.post('/login', asyncHandler(async (req, res) => {
       email: user.email,
       avatarUrl: user.avatar_path ? `/api/auth/avatar/${user.id}` : null,
       isAdmin: !!user.is_admin,
+      language: user.language || null,
     },
     activeLocationId,
   });
