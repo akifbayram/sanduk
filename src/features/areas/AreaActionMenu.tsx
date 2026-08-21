@@ -1,20 +1,65 @@
 import { Pencil, Trash2 } from 'lucide-react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useDialogPortal } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 interface AreaActionMenuProps {
   visible: boolean;
   animating: 'enter' | 'exit' | null;
+  triggerRef: RefObject<HTMLElement | null>;
+  onClose: () => void;
   onRename: () => void;
   onDelete: () => void;
 }
 
-export function AreaActionMenu({ visible, animating, onRename, onDelete }: AreaActionMenuProps) {
-  if (!visible) return null;
-  return (
-    <div className={cn(
-      animating === 'exit' ? 'animate-popover-exit' : 'animate-popover-enter',
-      'absolute right-0 top-full mt-1.5 z-50 min-w-[140px] rounded-[var(--radius-lg)] flat-popover overflow-hidden',
-    )}>
+export function AreaActionMenu({ visible, animating, triggerRef, onClose, onRename, onDelete }: AreaActionMenuProps) {
+  const dialogPortal = useDialogPortal();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  // Portaled to document.body (or the enclosing Dialog's portal target) so the
+  // menu escapes each card's stacking context — cards get one from the
+  // .animate-card-stagger entrance animation's lingering `transform`, which
+  // otherwise traps a same-tree absolutely-positioned menu behind the next card.
+  const reposition = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+  }, [triggerRef]);
+
+  useEffect(() => {
+    if (!visible) return;
+    reposition();
+    function handleClick(e: MouseEvent) {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target as Node) &&
+        menuRef.current && !menuRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    }
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    document.addEventListener('mousedown', handleClick);
+    return () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+      document.removeEventListener('mousedown', handleClick);
+    };
+  }, [visible, reposition, onClose, triggerRef]);
+
+  if (!visible || !pos) return null;
+
+  const menu = (
+    <div
+      ref={menuRef}
+      className={cn(
+        animating === 'exit' ? 'animate-popover-exit' : 'animate-popover-enter',
+        'fixed z-[100] min-w-[140px] rounded-[var(--radius-lg)] flat-popover overflow-hidden',
+      )}
+      style={{ top: pos.top, right: pos.right }}
+    >
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onRename(); }}
@@ -34,4 +79,6 @@ export function AreaActionMenu({ visible, animating, onRename, onDelete }: AreaA
       </button>
     </div>
   );
+
+  return createPortal(menu, dialogPortal ?? document.body);
 }

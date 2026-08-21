@@ -28,8 +28,12 @@ describe('applyContextLimits — complete flag', () => {
     expect(out.complete).toBe(true);
   });
 
-  it('reports complete=false when relevance filter trims overflow into other_bins', () => {
-    // 35 bins (>30 limit), only 2 contain the keyword "screwdriver"
+  it('reports complete=true for a keyword-matchable set that still fits the token budget (relevance pre-filter is disabled)', () => {
+    // 35 small bins (>30 old relevance limit), only 2 contain the keyword
+    // "screwdriver". The relevance pre-filter is intentionally disabled (see
+    // applyContextLimits) so every bin still reaches the model as long as it
+    // fits the token budget — completeness now depends only on budget, not
+    // on keyword relevance.
     const bins: TestBin[] = [
       makeBin('SCR001', 'Tools', ['screwdriver']),
       makeBin('SCR002', 'Workshop', ['screwdriver set']),
@@ -38,9 +42,9 @@ describe('applyContextLimits — complete flag', () => {
       ),
     ];
     const out = applyContextLimits(bins, 'find me a screwdriver please');
-    expect(out.complete).toBe(false);
-    expect(out.other_bins.length).toBeGreaterThan(0);
-    expect(out.bins.length).toBeLessThan(bins.length);
+    expect(out.complete).toBe(true);
+    expect(out.other_bins).toHaveLength(0);
+    expect(out.bins).toHaveLength(bins.length);
   });
 
   it('reports complete=false when budget trimming kicks in even without relevance filter', () => {
